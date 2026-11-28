@@ -3,8 +3,12 @@ import { ApiProperty } from '@nestjs/swagger';
 import { PagingDto } from 'src/common/dto/index';
 import { FeedbackStatusEnum } from '@nest-acticle/shared';
 
-/** 截图附件 URL 形态：只收本站上传通道（POST /common/upload）产物——/profile/ 虚拟路径开头的相对 URL，防外链注入 */
-const ATTACHMENT_URL_PATTERN = /^\/profile\/[\w\-./]+$/;
+/**
+ * 截图附件 URL 形态：只收本站上传通道（POST /common/upload）产物——/profile/ 虚拟路径开头的相对 URL，防外链注入。
+ * 字符白名单与上传落盘 getNewFileName 对齐（\w、中文 \u4e00-\u9fa5、. -，目录分隔 /）——
+ * 原始文件名/作者昵称含中文时返回的 URL 会带中文，旧正则误拒（2026-11-28 用户实测踩坑）
+ */
+const ATTACHMENT_URL_PATTERN = /^\/profile\/[\w\u4e00-\u9fa5\-./]+$/;
 
 /**
  * 提交反馈 DTO（登录用户；类型合法性由服务端按字典 post_feedback_type 缓存校验）
