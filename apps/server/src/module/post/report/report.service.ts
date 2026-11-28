@@ -8,6 +8,7 @@ import { PublishStatusEnum, ReportStatusEnum } from '@nest-acticle/shared';
 import { PostReportEntity } from './entities/report.entity';
 import { CreateReportDto, HandleReportDto, ListReportDto, ReportHandleActionEnum, ReportTargetTypeEnum } from './dto/index';
 import { PostArticleEntity } from '../article/entities/article.entity';
+import { attachWorkbenchReadState, PostWorkbenchReadEntity } from '../workbench/entities/workbench-read.entity';
 import { UserEntity } from 'src/module/system/user/entities/sys-user.entity';
 import { SysNoticeEntity } from 'src/module/system/notice/entities/notice.entity';
 import { DictService } from 'src/module/system/dict/dict.service';
@@ -44,6 +45,8 @@ export class PostReportService {
     private readonly articleRepo: Repository<PostArticleEntity>,
     @InjectRepository(UserEntity)
     private readonly userRepo: Repository<UserEntity>,
+    @InjectRepository(PostWorkbenchReadEntity)
+    private readonly readRepo: Repository<PostWorkbenchReadEntity>,
     private readonly dictService: DictService,
     private readonly userService: UserService,
   ) {}
@@ -146,9 +149,10 @@ export class PostReportService {
 
   /**
    * 举报管理列表（管理端，联举报人/处理人昵称；目标摘要按类型批查回填）
-   * 取数走 getRawAndEntities：report 实体 + join 出的两端用户展示列手动拼平
+   * 取数走 getRawAndEntities：report 实体 + join 出的两端用户展示列手动拼平；
+   * 行回填当前用户 isRead（工作区/管理页共用 30 号逐条已读，行内打开处理弹窗即标记已读）
    */
-  async findAdminList(query: ListReportDto) {
+  async findAdminList(query: ListReportDto, userId: number) {
     const entity = this.reportRepo.createQueryBuilder('report');
     entity
       .leftJoin(UserEntity, 'reporter', 'reporter.userId = report.reporterId')
@@ -199,8 +203,10 @@ export class PostReportService {
       createTime: row.report_create_time,
       targetTitle: null as string | null,
       targetName: null as string | null,
+      isRead: false,
     }));
     await this.attachTargetInfo(list);
+    await attachWorkbenchReadState(list, 'report', userId, this.readRepo);
 
     return ResultData.ok({ list, total });
   }

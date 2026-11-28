@@ -37,13 +37,13 @@ export class PostReportController {
   }
 
   /**
-   * 举报管理列表（管理端）
+   * 举报管理列表（管理端；行含当前用户 isRead，打开处理弹窗即标记已读）
    */
   @ApiOperation({ summary: '举报-管理列表' })
   @RequirePermission('post:report:list')
   @Get('/list')
-  findAdminList(@Query() query: ListReportDto) {
-    return this.reportService.findAdminList(query);
+  findAdminList(@Query() query: ListReportDto, @User() user: UserDto) {
+    return this.reportService.findAdminList(query, user.userId);
   }
 
   /**

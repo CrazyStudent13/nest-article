@@ -2,6 +2,12 @@
 
 更细粒度的过程记录（审查 → 修复 → 验收全程）见 [CODE-REVIEW-2026-11-20.md](./CODE-REVIEW-2026-11-20.md)。
 
+## 未发布
+
+### 变更
+
+- **举报/反馈管理列表接入未读效果（v1.6.x patch 候选）**：`findAdminList` 响应行新增当前用户 `isRead`（复用 30 号 `post_workbench_read` 逐条已读，共享回填 helper `attachWorkbenchReadState` 收进实体文件供三处消费）；管理页未读行红点+内容加粗（复用全局 `.unread-dot`/`.is-unread` 原语），打开处理弹窗（举报 openHandle）/详情抽屉（反馈 openDetail）即标记已读（乐观置位，失败静默，标记复用 `POST /post/workbench/read`）——工作区与两管理页口径互通（任一处看过即已读）
+
 ## v1.6.0（2026-11-28）
 
 管理端首页改「工作区」（统一待办收件箱，新功能 minor 版）：政府 OA 式全宽双 tab 待办队列 + 逐条已读/未读，待办聚合接口按权限逐源过滤，取代原「首页」欢迎页。

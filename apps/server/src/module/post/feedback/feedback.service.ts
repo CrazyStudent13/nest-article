@@ -6,6 +6,7 @@ import { BusinessException } from 'src/common/exceptions/business.exception';
 import { applyLike, attachUserInfo, paginate } from 'src/common/query';
 import { FeedbackStatusEnum } from '@nest-acticle/shared';
 import { PostFeedbackEntity } from './entities/feedback.entity';
+import { attachWorkbenchReadState, PostWorkbenchReadEntity } from '../workbench/entities/workbench-read.entity';
 import { CreateFeedbackDto, HandleFeedbackDto, ListFeedbackDto } from './dto/index';
 import { UserEntity } from 'src/module/system/user/entities/sys-user.entity';
 import { SysNoticeEntity } from 'src/module/system/notice/entities/notice.entity';
@@ -35,6 +36,8 @@ export class PostFeedbackService {
     private readonly feedbackRepo: Repository<PostFeedbackEntity>,
     @InjectRepository(UserEntity)
     private readonly userRepo: Repository<UserEntity>,
+    @InjectRepository(PostWorkbenchReadEntity)
+    private readonly readRepo: Repository<PostWorkbenchReadEntity>,
     private readonly dictService: DictService,
   ) {}
 
@@ -83,9 +86,10 @@ export class PostFeedbackService {
 
   /**
    * 反馈管理列表（管理端，联提交人/处理人昵称 + attachUserInfo 回填提交人昵称头像）
-   * 取数走 getRawAndEntities：feedback 实体 + join 出的两端用户展示列手动拼平
+   * 取数走 getRawAndEntities：feedback 实体 + join 出的两端用户展示列手动拼平；
+   * 行回填当前用户 isRead（工作区/管理页共用 30 号逐条已读，打开详情抽屉即标记已读）
    */
-  async findAdminList(query: ListFeedbackDto) {
+  async findAdminList(query: ListFeedbackDto, userId: number) {
     const entity = this.feedbackRepo.createQueryBuilder('feedback');
     entity
       .leftJoin(UserEntity, 'submitter', 'submitter.userId = feedback.userId')
@@ -128,9 +132,11 @@ export class PostFeedbackService {
       replyAdminName: row.replyAdmin_nick_name,
       replyTime: row.feedback_reply_time,
       createTime: row.feedback_create_time,
+      isRead: false,
     }));
     // attachUserInfo 返回新数组（追加 userInfo 字段），须接住返回值而非原 list
     const listWithUser = await attachUserInfo(list, this.userRepo);
+    await attachWorkbenchReadState(listWithUser, 'feedback', userId, this.readRepo);
 
     return ResultData.ok({ list: listWithUser, total });
   }

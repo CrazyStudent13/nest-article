@@ -1,3 +1,4 @@
+import { In } from 'typeorm';
 import { PostFeedbackService } from './feedback.service';
 import { PostFeedbackEntity } from './entities/feedback.entity';
 
@@ -28,12 +29,14 @@ describe('PostFeedbackService', () => {
   };
   const userRepo = { find: jest.fn(), manager: { transaction: jest.fn() } };
   const dictService = { findOneDataType: jest.fn() };
+  const readRepo = { find: jest.fn().mockResolvedValue([]) };
 
   let manager: ReturnType<typeof makeManager>;
   let service: PostFeedbackService;
 
   beforeEach(() => {
     jest.resetAllMocks();
+    readRepo.find.mockResolvedValue([]);
     manager = makeManager();
     userRepo.manager.transaction.mockImplementation((cb: (m: unknown) => unknown) => cb(manager));
     feedbackRepo.manager.transaction.mockImplementation((cb: (m: unknown) => unknown) => cb(manager));
@@ -47,7 +50,7 @@ describe('PostFeedbackService', () => {
       ],
     });
 
-    service = new PostFeedbackService(feedbackRepo as any, userRepo as any, dictService as any);
+    service = new PostFeedbackService(feedbackRepo as any, userRepo as any, readRepo as any, dictService as any);
   });
 
   const baseDto = { type: '2', content: '文章保存时偶尔报错' };
@@ -193,7 +196,7 @@ describe('PostFeedbackService', () => {
         { userId: 9, nickName: '用户乙', avatar: null },
       ]);
 
-      const res = await service.findAdminList({ pageNum: 1, pageSize: 10 } as any);
+      const res = await service.findAdminList({ pageNum: 1, pageSize: 10 } as any, 1);
       const list = res.data.list as Array<Record<string, any>>;
 
       expect(res.data.total).toBe(2);
@@ -211,6 +214,24 @@ describe('PostFeedbackService', () => {
         replyAdminName: '管理员乙',
         userInfo: { userId: 9, nickName: '用户乙', avatar: null },
       });
+      // 无已读标记：全行 isRead=false（工作台/管理页共用 30 号逐条已读回填，feedback_id=[1,2]）
+      expect(readRepo.find).toHaveBeenCalledWith({ where: { userId: 1, source: 'feedback', sourceId: In([1, 2]) }, select: ['sourceId'] });
+      expect(list.map((item: { isRead: boolean }) => item.isRead)).toEqual([false, false]);
+    });
+
+    it('已读标记命中：对应行 isRead=true', async () => {
+      chain.getRawAndEntities.mockResolvedValue({
+        raw: [
+          { feedback_id: 1, feedback_user_id: 7, feedback_type: '2', feedback_content: '内容', feedback_attachments: null, feedback_status: '0', feedback_reply_content: null, feedback_admin_id: null, replyAdmin_nick_name: null, feedback_reply_time: null, feedback_create_time: new Date() },
+        ],
+        entities: [],
+      });
+      userRepo.find.mockResolvedValue([]);
+      readRepo.find.mockResolvedValue([{ sourceId: 1 }]);
+
+      const res = await service.findAdminList({ pageNum: 1, pageSize: 10 } as any, 1);
+
+      expect((res.data.list as Array<{ isRead: boolean }>)[0].isRead).toBe(true);
     });
   });
 

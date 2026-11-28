@@ -37,11 +37,13 @@
             <dict-tag type="post_feedback_type" :value="row.type" />
           </template>
         </el-table-column>
-        <!-- 反馈内容：单行省略，点击开详情抽屉看全文与大图；「图 xN」只作数量角标（行内缩略图看不清，大图进抽屉） -->
-        <el-table-column min-width="220" show-overflow-tooltip>
+        <!-- 反馈内容：单行省略，点击开详情抽屉看全文与大图（打开即标记已读，与工作区口径一致）；
+             「图 xN」只作数量角标（行内缩略图看不清，大图进抽屉）；未读行红点（.unread-dot 全局原语）+内容加粗 -->
+        <el-table-column min-width="220" show-overflow-tooltip class-name="summary-col">
           <template #header>反馈内容</template>
           <template #default="{ row }">
-            <span class="feedback-link" @click="openDetail(row)">{{ row.content }}</span>
+            <span v-if="!row.isRead" class="unread-dot" />
+            <span class="feedback-link" :class="{ 'is-unread': !row.isRead }" @click="openDetail(row)">{{ row.content }}</span>
             <el-tag v-if="row.attachments?.length" class="attach-count" size="small" type="info" effect="plain">图 x{{ row.attachments.length }}</el-tag>
           </template>
         </el-table-column>
@@ -153,6 +155,7 @@
 import { Delete, Edit, Refresh, Search } from '@element-plus/icons-vue';
 
 import { delFeedback, handleFeedback, listFeedback } from '@/api/post/feedback';
+import { markTodoRead } from '@/api/post/workbench';
 import { addDateRange } from '@/composables/useCommon';
 import { useCrud } from '@/composables/useCrud';
 import { useDict } from '@/composables/useDict';
@@ -191,6 +194,7 @@ onActivated(() => {
 });
 
 // ---------- 详情/处理抽屉：内容列点击与操作列「处理」共用；提交后重拉列表 ----------
+// 打开即视为已读：乐观置位（不重拉列表），标记失败静默——与工作区共用 30 号逐条已读（POST /post/workbench/read）
 const detailOpen = ref(false);
 const handleSubmitting = ref(false);
 const detailRow = ref(null);
@@ -200,6 +204,10 @@ const openDetail = (row) => {
   detailRow.value = row;
   handleForm.status = '1';
   handleForm.replyContent = '';
+  if (!row.isRead) {
+    row.isRead = true;
+    markTodoRead({ source: 'feedback', id: row.id }).catch(() => {});
+  }
   detailOpen.value = true;
 };
 
@@ -237,6 +245,11 @@ const resetQuery = () => {
 feedback.getList();
 </script>
 <style lang="scss" scoped>
+// 未读红点宿主锚点（红点/加粗走全局 .unread-dot/.is-unread）
+:deep(.summary-col .cell) {
+  position: relative;
+}
+
 // 提交人：头像与昵称同行
 .submitter {
   display: inline-flex;
