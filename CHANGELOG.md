@@ -19,6 +19,7 @@ insert into sys_role_menu (role_id, menu_id) values ('2', '2014');
 
 ### 工程化
 
+- **docs 发布记录页改版**：「版本一览」表格组件化为 Element 风格折叠表格（`ReleaseOverview.vue`，中版本行展开小版本行、点版本号直达详情折叠组、Git 标签区间自动生成，数据随组件 `releases` 数组维护）；版本详情 7 个版本组改 details 折叠（Element 展开行风格，最新版默认展开，侧栏锚点跳转 hashchange 监听自动展开）；「新增一条发布记录」操作清单迁至开发分区「发布记录维护」页（release skill 第 4 步与 releases 页首/页尾引用同步改链，小版本改为入 patches 数组、不再并入 minor 主题格）
 - **docs 发布记录改折叠口径**：小版本（patch）并入所属中版本展示——「版本一览」13 行收敛为 7 行（patch 一句话追加进 minor 行主题格、Git 标签格扩成 `vX.Y.0`~`vX.Y.n` 区间、日期保持 minor 的），「版本详情」按 `### vX.Y.x（日期起 → 止）` 分组、组内版本降为 `####` 子节（小节顺延 `#####`，锚点不变），侧栏时间线 patch 条目缩进挂 minor 条目（`collapsed: true`）；release skill 第 4 步与 releases.md 页尾「新增一条发布记录」同步改口径，并注明 VitePress 死链检查不覆盖 `#hash` 锚点（侧栏锚点需人工核对）
 
 ## v1.6.1（2026-11-29）
