@@ -32,12 +32,11 @@
             <el-tag :type="meta[row.source]?.tagType || 'info'" size="small">{{ meta[row.source]?.tag || '待办' }}</el-tag>
           </template>
         </el-table-column>
-      <el-table-column label="摘要" min-width="240" show-overflow-tooltip>
+      <el-table-column label="摘要" min-width="240" show-overflow-tooltip class-name="summary-col">
         <template #default="{ row }">
-          <span :class="{ 'summary-unknown': !meta[row.source], 'is-unread': !row.isRead }">
-            <span v-if="!row.isRead" class="unread-dot" />
-            {{ row.summary || '（无摘要）' }}
-          </span>
+          <!-- 未读红点：绝对定位在单元格左上角（传统角标排版，不占文本流空间）；加粗只在摘要文本 -->
+          <span v-if="!row.isRead" class="unread-dot" />
+          <span :class="{ 'summary-unknown': !meta[row.source], 'is-unread': !row.isRead }">{{ row.summary || '（无摘要）' }}</span>
         </template>
       </el-table-column>
         <el-table-column label="发起者" width="130" show-overflow-tooltip>
@@ -174,20 +173,26 @@ onMounted(fetchList);
     color: #909399;
   }
 
-  // 未读行：摘要加粗 + 前置红点（已读无点无加粗，行点击即已读）
+  // 摘要列：未读行文本加粗；红点绝对定位锚定单元格（需要 cell relative）
+  :deep(.summary-col .cell) {
+    position: relative;
+  }
+
+  // 未读行：摘要加粗
   .is-unread {
     font-weight: 600;
     color: #303133;
   }
 
-  .unread-dot {
-    display: inline-block;
-    width: 7px;
-    height: 7px;
-    margin-right: 6px;
+  // 未读红点：6px 小点，落在单元格左上角（cell 内边距区，不占文本流空间、不与文字重叠）
+  :deep(.summary-col .unread-dot) {
+    position: absolute;
+    top: 4px;
+    left: 3px;
+    width: 6px;
+    height: 6px;
     border-radius: 50%;
     background-color: #f56c6c;
-    vertical-align: middle;
   }
 
   :deep(.pagination-container) {
