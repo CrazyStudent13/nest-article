@@ -29,24 +29,26 @@
       </div>
     </div>
 
-    <el-table v-loading="loading" :data="list" :empty-text="queryParams.tab === 'done' ? '暂无已办记录' : '暂无待办'" @row-click="goHandle">
-      <el-table-column label="来源" width="76">
-        <template #default="{ row }">
-          <el-tag :type="meta[row.source]?.tagType || 'info'" size="small">{{ meta[row.source]?.tag || '待办' }}</el-tag>
-        </template>
-      </el-table-column>
-      <el-table-column label="摘要" min-width="240" show-overflow-tooltip>
-        <template #default="{ row }">
-          <span :class="{ 'summary-unknown': !meta[row.source] }">{{ row.summary || '（无摘要）' }}</span>
-        </template>
-      </el-table-column>
-      <el-table-column label="发起者" width="130" show-overflow-tooltip>
-        <template #default="{ row }">{{ row.submitterName || '—' }}</template>
-      </el-table-column>
-      <el-table-column :label="queryParams.tab === 'done' ? '办结时间' : '提交时间'" width="150">
-        <template #default="{ row }">{{ formatTime(queryParams.tab === 'done' ? row.finishTime : row.submitTime) }}</template>
-      </el-table-column>
-    </el-table>
+    <div class="table-fixed">
+      <el-table v-loading="loading" :data="list" :empty-text="queryParams.tab === 'done' ? '暂无已办记录' : '暂无待办'" @row-click="goHandle">
+        <el-table-column label="来源" width="76">
+          <template #default="{ row }">
+            <el-tag :type="meta[row.source]?.tagType || 'info'" size="small">{{ meta[row.source]?.tag || '待办' }}</el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column label="摘要" min-width="240" show-overflow-tooltip>
+          <template #default="{ row }">
+            <span :class="{ 'summary-unknown': !meta[row.source] }">{{ row.summary || '（无摘要）' }}</span>
+          </template>
+        </el-table-column>
+        <el-table-column label="发起者" width="130" show-overflow-tooltip>
+          <template #default="{ row }">{{ row.submitterName || '—' }}</template>
+        </el-table-column>
+        <el-table-column :label="queryParams.tab === 'done' ? '办结时间' : '提交时间'" width="150">
+          <template #default="{ row }">{{ formatTime(queryParams.tab === 'done' ? row.finishTime : row.submitTime) }}</template>
+        </el-table-column>
+      </el-table>
+    </div>
     <pagination
       v-show="total > 0"
       v-model:limit="queryParams.pageSize"
@@ -82,7 +84,7 @@ const dateRange = ref([]);
 
 const queryParams = reactive({
   pageNum: 1,
-  pageSize: 10,
+  pageSize: 5,
   tab: 'pending',
   source: '',
   orderRule: 'desc'
@@ -146,6 +148,11 @@ onMounted(fetchList);
     align-items: center;
     gap: 8px;
     flex-wrap: wrap;
+  }
+
+  // 表格区定高≈表头+5 行（每页 5 条恰好填满；不足 5 条/空态留白，切页与切 tab 卡高稳定不跳动）
+  .table-fixed {
+    min-height: 298px;
   }
 
   // 行即入口：指针提示可点（el-table row-click 无默认指针）

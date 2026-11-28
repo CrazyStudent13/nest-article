@@ -1,26 +1,39 @@
 <template>
   <div class="app-container home">
-    <!-- 待办工作台（政府 OA 式收件箱）：首页唯一要紧内容——统一待办队列全宽铺开（待办/已办双 tab +
-         来源/时间范围/排序筛选），行点击带 status=0 深链跳对应管理页处理；问候压成卡头一行小字 -->
-    <el-card class="workbench-card">
-      <template #header>
-        <div class="card-header">
-          <span class="card-title">待办处理</span>
-          <span class="card-greeting">{{ greeting }}，{{ userStore.name }}，欢迎回来</span>
-        </div>
-      </template>
-      <WorkbenchTodoList :meta="todoMeta" />
-    </el-card>
+    <!-- 待办工作台（政府 OA 式收件箱）：首页唯一要紧内容——统一待办队列（待办/已办双 tab +
+         来源/时间范围/排序筛选），行点击带 status=0 深链跳对应管理页处理；右侧独立问候小卡 -->
+    <el-row :gutter="16">
+      <el-col :xs="24" :md="18">
+        <el-card class="workbench-card">
+          <template #header>
+            <span class="card-title">待办处理</span>
+          </template>
+          <WorkbenchTodoList :meta="todoMeta" />
+        </el-card>
+      </el-col>
+      <el-col :xs="24" :md="6">
+        <el-card class="greeting-card">
+          <div class="greeting-body">
+            <div class="greeting-main">{{ greeting }}，{{ userStore.name }}</div>
+            <div class="greeting-sub">欢迎回来，今天是 {{ today }}</div>
+          </div>
+        </el-card>
+      </el-col>
+    </el-row>
   </div>
 </template>
 
 <script setup name="Index">
+import dayjs from 'dayjs';
+
 import useUserStore from '@/store/modules/user';
 
 const userStore = useUserStore();
 
 const hour = new Date().getHours();
 const greeting = hour < 6 ? '凌晨好' : hour < 12 ? '上午好' : hour < 14 ? '中午好' : hour < 18 ? '下午好' : '晚上好';
+const WEEK_LABELS = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
+const today = `${dayjs().format('YYYY年MM月DD日')} ${WEEK_LABELS[new Date().getDay()]}`;
 
 // ---------- 待办工作台 ----------
 // 展示元数据前端维护：服务端只回 key+count / source 行（无权限源不出现），文案与跳转路由不进契约；
@@ -37,20 +50,38 @@ const todoMeta = {
     border-radius: 8px;
   }
 
-  .card-header {
-    display: flex;
-    align-items: baseline;
-    gap: 12px;
-  }
-
   .card-title {
     font-size: 16px;
     font-weight: 600;
     color: #303133;
   }
 
-  .card-greeting {
-    font-size: 12px;
+  // 问候小卡：与待办卡同高（el-row 拉伸 + 卡片撑满），内容垂直居中
+  .greeting-card {
+    height: 100%;
+    border-radius: 8px;
+
+    :deep(.el-card__body) {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: calc(100% - 61px);
+    }
+  }
+
+  .greeting-body {
+    text-align: center;
+  }
+
+  .greeting-main {
+    font-size: 20px;
+    font-weight: 600;
+    color: #303133;
+  }
+
+  .greeting-sub {
+    margin-top: 10px;
+    font-size: 13px;
     color: #909399;
   }
 }
