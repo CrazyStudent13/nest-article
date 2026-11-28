@@ -11,7 +11,7 @@ description: nest-acticle 项目发版流程——版本号决策与全仓对齐
 
 1. 工作树干净（`git status --short` 为空）。
 2. 当前在 dev 分支且与 origin/dev 同步（发版内容都在 dev 上）。
-3. CHANGELOG.md 存在非空「未发布（dev 分支，随下版本发布）」段——它就是本次发布的内容清单。为空则无事可发，告知用户。
+3. CHANGELOG.md 存在非空「未发布（dev 分支，随下版本发布）」段——它就是本次发布的内容清单。为空分两种情况：用户并无明确发版意图 → 告知无事可发；用户明确要求发版且改动已知（如「把 skill 提交也发版」）→ 先把改动补进未发布段（对应小节）再继续流程（v1.4.3 实例）。
 4. 门禁绿：`pnpm --filter server test`（在 apps/server 目录下跑 jest）+ 根 `pnpm lint` + `pnpm typecheck` + `pnpm --filter admin build:prod`。任一红先修再发。
 
 ## 1. 版本号决策
