@@ -62,7 +62,10 @@ export default defineConfig({
       '/development-tips/': [
         {
           text: '开发',
-          items: [{ text: '协作开发', link: '/development-tips/partner' }],
+          items: [
+            { text: '协作开发', link: '/development-tips/partner' },
+            { text: '发布记录维护', link: '/development-tips/release-notes' },
+          ],
         },
       ],
       '/releases': [

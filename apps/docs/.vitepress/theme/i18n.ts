@@ -20,6 +20,7 @@ const zhToEn: Record<string, string> = {
   问题排查: 'Troubleshooting',
   命令速查: 'Command Checklist',
   协作开发: 'Collaboration',
+  发布记录维护: 'Release Notes Guide',
   // 页面标题
   流程简介: 'Deployment Overview',
   MySQL部署: 'MySQL Deployment',
