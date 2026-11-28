@@ -1,6 +1,6 @@
 {
   "name": "@nest-acticle/editor",
-  "version": "1.6.0",
+  "version": "1.6.1",
   "private": true,
   "description": "monorepo Markdown 编辑与预览共享包：MarkdownEditor（textarea+工具栏+快捷键+左写右预览）与 ArticlePreview（发布前整页预览）由 client 与 admin 共用；渲染走 @nest-acticle/markdown（预览即前台呈现），上传经 uploadImage 回调注入（裁剪/上传/地址补全是宿主业务）",
   "main": "./dist/index.js",
