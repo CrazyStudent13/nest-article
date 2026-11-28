@@ -88,7 +88,7 @@ export const constantRoutes: AppRouteRecordRaw[] = [
         path: '/index',
         component: () => import('@/views/index.vue'),
         name: 'Index',
-        meta: { title: '首页', icon: 'dashboard', affix: true }
+        meta: { title: '工作区', icon: 'dashboard', affix: true }
       }
     ]
   },

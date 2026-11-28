@@ -46,7 +46,6 @@
       </el-table>
     </div>
     <pagination
-      v-show="total > 0"
       v-model:limit="queryParams.pageSize"
       v-model:page="queryParams.pageNum"
       :auto-scroll="false"
@@ -125,16 +124,22 @@ onMounted(fetchList);
     justify-content: space-between;
     gap: 12px;
     flex-wrap: wrap;
-    margin-bottom: 8px;
+    margin-bottom: 12px;
+    // 工具条整行底线：tabs 与右侧查询条件/按钮一并与表格区隔开（el-tabs 自带半截线撤掉避免双线）
+    border-bottom: 1px solid var(--el-border-color-light);
   }
 
   .todo-tabs {
     flex: 1;
     min-width: 200px;
 
-    // tabs 底线与筛选行对齐，去掉与表格之间的多余留白
     :deep(.el-tabs__header) {
       margin-bottom: 0;
+    }
+
+    // 自带底线撤掉，由 .list-toolbar 的整行底线承接（active 指示条仍压在线上）
+    :deep(.el-tabs__nav-wrap::after) {
+      display: none;
     }
   }
 
