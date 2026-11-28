@@ -6,3 +6,10 @@ import request from '@/composables/useRequest';
 export function getWorkbenchSummary() {
   return request({ url: '/post/workbench/summary', method: 'get' });
 }
+
+// 工作台统一待办队列：有权管理的源 UNION 归一化按提交时间倒序分页（source/id/summary/提交人/时间）；
+// 行只读不承载处理（处理交互长在各自管理页），行点击由首页跳对应管理页（status=0 深链）
+export function listWorkbenchTodos(params) {
+  return request({ url: '/post/workbench/todos', method: 'get', params });
+}
+
