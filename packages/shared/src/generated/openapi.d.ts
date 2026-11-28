@@ -3329,6 +3329,8 @@ export interface components {
             type: string;
             /** @description 反馈内容（1-500 字） */
             content: string;
+            /** @description 截图附件（可选，至多 3 张，/common/upload 返回的 /profile/ 相对 URL） */
+            attachments?: string[];
         };
         HandleFeedbackDto: {
             /**

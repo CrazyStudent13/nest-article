@@ -17,6 +17,8 @@ export interface FeedbackPayload {
   type: FeedbackTypeEnum | string;
   /** 反馈内容（1-500 字） */
   content: string;
+  /** 截图附件（可选，至多 3 张；服务端 /common/upload 上传后的 /profile/ 相对 URL） */
+  attachments?: string[];
 }
 
 /** 提交反馈返回（ResultData.data） */
@@ -45,6 +47,8 @@ export interface FeedbackAdminItem {
   content: string;
   /** 处理状态（0 待处理 1 已回复 2 已关闭） */
   status: FeedbackStatusEnum | string;
+  /** 截图附件相对 URL 数组（/profile/ 前缀，无附件为空数组；库内 JSON 字符串出库反序列化） */
+  attachments: string[];
   /** 管理员回复内容（未处理为 null） */
   replyContent: string | null;
   /** 处理人用户 id（未处理为 null） */
