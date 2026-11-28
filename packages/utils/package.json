@@ -1,6 +1,6 @@
 {
   "name": "@nest-acticle/utils",
-  "version": "1.4.3",
+  "version": "1.5.0",
   "private": true,
   "description": "monorepo 纯函数工具包：validation/tree/date/query-string/url（仅 dayjs 一个运行时依赖）",
   "main": "./dist/index.js",

@@ -1316,7 +1316,7 @@ export interface paths {
         };
         /**
          * 字典数据-类型-详情【走缓存】
-         * @description 传 fresh=true 时跳过 Redis 缓存，直接查询数据库；公开字典（is_public=Y）游客可读，非公开字典游客返回 403
+         * @description 传 fresh=true 时跳过 Redis 缓存，直接查询数据库（仅登录态生效）；公开字典（is_public=Y）游客可读，非公开字典游客返回 403；游客强制走缓存，不接受 fresh
          */
         get: operations["DictController_findOneDataType"];
         put?: never;
@@ -2693,6 +2693,74 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/post/feedback": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 反馈-提交 */
+        post: operations["PostFeedbackController_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/post/feedback/list": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 反馈-管理列表 */
+        get: operations["PostFeedbackController_findAdminList"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/post/feedback/handle/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** 反馈-处理 */
+        put: operations["PostFeedbackController_handle"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/post/feedback/batch/{ids}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** 反馈-批量删除 */
+        delete: operations["PostFeedbackController_removeByIds"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -3255,6 +3323,23 @@ export interface components {
             handleRemark?: string;
             /** @description 停用原因（disableUser 动作生效，展示在登录拦截提示中） */
             stopReason?: string;
+        };
+        CreateFeedbackDto: {
+            /** @description 反馈类型（字典 post_feedback_type 的 dictValue，服务端按字典缓存校验合法性） */
+            type: string;
+            /** @description 反馈内容（1-500 字） */
+            content: string;
+            /** @description 截图附件（可选，至多 3 张，/common/upload 返回的 /profile/ 相对 URL） */
+            attachments?: string[];
+        };
+        HandleFeedbackDto: {
+            /**
+             * @description 处理结论（1 已回复 2 已关闭）
+             * @enum {string}
+             */
+            status: "1" | "2";
+            /** @description 回复内容（status=1 必填 1-500 字；status=2 可空简短说明） */
+            replyContent?: string;
         };
     };
     responses: never;
@@ -7114,6 +7199,101 @@ export interface operations {
         };
     };
     PostReportController_removeByIds: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                ids: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    PostFeedbackController_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateFeedbackDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    PostFeedbackController_findAdminList: {
+        parameters: {
+            query?: {
+                /** @description 当前分页 */
+                pageNum?: number;
+                /** @description 每页数量 */
+                pageSize?: number;
+                /** @description 排序字段 */
+                orderByColumn?: string;
+                /** @description 排序规则 */
+                isAsc?: string;
+                /** @description 反馈类型（dictValue 精确匹配） */
+                type?: string;
+                /** @description 处理状态（0 待处理 1 已回复 2 已关闭） */
+                status?: string;
+                /** @description 提交人昵称（模糊搜索，联 sys_user） */
+                userName?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    PostFeedbackController_handle: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["HandleFeedbackDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    PostFeedbackController_removeByIds: {
         parameters: {
             query?: never;
             header?: never;

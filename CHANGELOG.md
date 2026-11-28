@@ -2,6 +2,74 @@
 
 更细粒度的过程记录（审查 → 修复 → 验收全程）见 [CODE-REVIEW-2026-11-20.md](./CODE-REVIEW-2026-11-20.md)。
 
+## v1.5.0（2026-11-28）
+
+用户反馈模块 v1 全链路（新功能 minor 版）：登录用户右下角悬浮入口提交类型化反馈（支持截图附件），管理端查看/处理合一详情抽屉，处理结果走 sys_notice 定向通知闭环。
+
+> 升级提示：**含数据库与种子变更**——全新导入跑 init.sql 无需处理；存量库勿重跑全量 init.sql（drop 重建），按下方增量 SQL 执行（执行后删除 Redis `sys_dict:all`——DictService 全量字典缓存不感知 SQL 直改）。**发版前部署需重build server/client/admin 镜像**（本次含新模块与新页面；server 镜像构建已修复缺 @nest-acticle/utils 的问题）。
+
+**存量库增量 SQL**（按 init.sql 空闲段取 id；若占用请顺延）：
+
+```sql
+-- 1) 建表（29 号表）
+create table if not exists post_feedback (
+  id int not null auto_increment comment '反馈 id',
+  user_id int not null comment '提交人用户ID（登录身份，无 contact 字段）',
+  type char(1) not null comment '反馈类型（1 功能建议 2 问题反馈 3 其他，字典 post_feedback_type）',
+  content varchar(500) not null comment '反馈内容（1-500 字）',
+  attachments varchar(1000) default null comment '截图附件（JSON 数组字符串，/profile/ 相对 URL，至多 3 张，无附件 null）',
+  status char(1) default '0' comment '处理状态（0 待处理 1 已回复 2 已关闭）',
+  reply_content varchar(500) default null comment '管理员回复内容（回复必填，关闭可空说明）',
+  admin_id int default null comment '处理人用户ID（未处理 null）',
+  del_flag char(1) default '0' comment '删除标志（0代表存在 1代表删除，业务不软删）',
+  reply_time datetime(3) default null comment '处理时间（毫秒粒度）',
+  create_time datetime(3) default current_timestamp(3) comment '提交时间（毫秒粒度，24h 频控统计列）',
+  primary key (id),
+  key idx_user_id (user_id),
+  key idx_status (status)
+) engine = innodb comment = '用户反馈库';
+
+-- 2) 字典类型（22/23）与字典数据（69-75）
+insert into sys_dict_type (dict_id, dict_name, dict_type, status, create_by, create_time, update_by, update_time, remark, del_flag) values
+  (22, '反馈类型', 'post_feedback_type', '0', 'admin', now(), '', null, '用户反馈类型列表（登录态专用不公开——游客不可提交反馈，管理端/用户弹窗均走登录态读取）', '0'),
+  (23, '反馈处理状态', 'post_feedback_status', '0', 'admin', now(), '', null, '用户反馈处理状态列表', '0');
+
+insert into sys_dict_data (dict_code, dict_sort, dict_label, dict_value, dict_type, css_class, list_class, is_default, status, create_by, create_time, update_by, update_time, remark, del_flag) values
+  (69, 1, '功能建议', '1', 'post_feedback_type', '', 'primary', 'N', '0', 'admin', now(), '', null, '反馈类型-功能建议', '0'),
+  (70, 2, '问题反馈', '2', 'post_feedback_type', '', 'danger', 'N', '0', 'admin', now(), '', null, '反馈类型-问题反馈', '0'),
+  (71, 3, '其他', '3', 'post_feedback_type', '', 'info', 'N', '0', 'admin', now(), '', null, '反馈类型-其他', '0'),
+  (72, 1, '待处理', '0', 'post_feedback_status', '', 'warning', 'Y', '0', 'admin', now(), '', null, '反馈状态-待处理', '0'),
+  (73, 2, '已回复', '1', 'post_feedback_status', '', 'success', 'N', '0', 'admin', now(), '', null, '反馈状态-已回复（sys_notice 定向通知 noticeType=4）', '0'),
+  (74, 3, '已关闭', '2', 'post_feedback_status', '', 'info', 'N', '0', 'admin', now(), '', null, '反馈状态-已关闭（终态不可重复处理）', '0'),
+  (75, 4, '反馈回复', '4', 'sys_notice_type', '', 'warning', 'N', '0', 'admin', now(), '', null, '反馈回复（sys_notice.user_id 定向私密通知，业务侧程序写入——用户反馈回复/关闭通知）', '0');
+
+-- 3) 菜单（parent 6 交互管理）与 role 2 授权
+insert into sys_menu (menu_id, menu_name, parent_id, order_num, path, component, query, is_frame, is_cache, menu_type, visible, status, perms, icon, create_by, create_time, update_by, update_time, remark, del_flag) values
+  (215, '反馈管理', '6', '6', 'feedback', 'post/feedback/index', '', '1', '0', 'C', '0', '0', 'post:feedback:list', 'message', 'admin', now(), '', null, '反馈管理菜单', '0'),
+  (216, '反馈处理', '215', '1', '', '', '', '1', '0', 'F', '0', '0', 'post:feedback:handle', 'form', 'admin', now(), '', null, '反馈处理权限', '0'),
+  (217, '反馈删除', '215', '2', '', '', '', '1', '0', 'F', '0', '0', 'post:feedback:remove', 'form', 'admin', now(), '', null, '反馈删除权限', '0');
+
+insert into sys_role_menu (role_id, menu_id) values ('2', '215'), ('2', '216'), ('2', '217');
+
+-- 4) 字典管理树分组（可选，管理端字典树展示用）
+update sys_dict_type set dict_module = '社区互动' where dict_type in ('post_feedback_type', 'post_feedback_status');
+```
+
+### 新增
+
+- **用户反馈模块 v1 全链路**：登录用户右下角悬浮入口提交类型化反馈（功能建议/问题反馈/其他，走字典 `post_feedback_type`，textarea 500 字上限），24h 窗口 10 条用户维度频控防刷，不做 pending 去重、无 contact 字段（登录身份即提交人）；**截图附件至多 3 张**（复用 /common/upload 上传通道 `path=feedback` 归档，支持内容框直接粘贴截图，服务端校验张数与 /profile/ 前缀防外链，库内 JSON 单列）；管理端「交互管理/反馈管理」（useCrud + **查看/处理合一详情抽屉**——内容列可点开看全文与附件大图，待处理记录抽屉内直接回复/关闭，行内只留「图 xN」角标）两结论流转——回复必填回复内容、关闭可选简短说明，终态按 `status='0'` 条件更新乐观锁不可重复处理；处理结果经 sys_notice 定向通知（`sys_notice_type` 新增 `'4' 反馈回复`，绿色徽标）发给提交人，前台「系统通知」栏承接，逐条已读模型照旧，不新增通知 tab/水位分类；用户弹窗未登录点击弹登录框且登录成功自动打开（登录意图 pattern），评论区「查看更多评论」FAB 让位堆叠（bottom 28→84px）；shared 新增 Feedback 枚举与线格式类型 + openapi 契约重生成
+- **种子**：init.sql 新增 29 号表 `post_feedback`（datetime(3) 毫秒粒度、idx_user_id/idx_status、attachments JSON 单列）、字典类型 22 `post_feedback_type` / 23 `post_feedback_status`（dict_data 69-74，登录态专用不公开——游客不可提交无需进游客白名单）、`sys_notice_type` 字典 '4'（dict_code 75）、菜单 215/216/217（parent 6 交互管理，显式列名 INSERT）与 role 2 授权；**存量库勿重跑全量 init.sql**，增量 SQL 见下方升级提示
+- **docs**：新增反馈模块约定页（接口契约/通知送达口径/widget 落位与堆叠/v2 路线：邮件增强、我的反馈历史缓做），侧栏与 client 概览/开发约定挂入口
+
+### 修复
+
+- **粘贴文字被误拦成截图**：聊天窗口/截图工具复制文字时剪贴板常附位图（文字渲染图），旧 paste 处理检测到图片即强制上传并吃掉文字——改为剪贴板有文字时优先放行原生粘贴、忽略图，纯图才上传（用户实测踩坑）
+- **中文附件地址被误拒**：上传落盘白名单允许中文（中文名截图/中文昵称作者），反馈附件 URL 白名单只收 ASCII 字符集——补中文段与落盘字符集逐字对齐，外链/注入拦截闸不松
+
+### 工程化
+
+- **server Dockerfile 补 `@nest-acticle/utils`**：server 依赖 utils 后镜像构建仍只拷 shared——`pnpm -r build` 报 TS2307（部署阻塞），builder/runner 两阶段补齐；本地重建三镜像实测通过
+
 ## v1.4.3（2026-11-28）
 
 发版流程沉淀为项目 skill 的工程化小版本，无业务代码变更。

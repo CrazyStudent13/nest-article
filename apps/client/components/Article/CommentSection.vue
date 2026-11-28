@@ -573,10 +573,12 @@ const removeComment = async (item: CommentItem) => {
 
   // 查看更多评论：常驻视口右下角的悬浮胶囊按钮（脱离列表流，不随滚动消失；
   // 放在 .comment-section 直属层级——按钮模板已移出 .comment-list，嵌套选择器会匹配不上）
+  // bottom 84px 让位全站反馈入口（FeedbackWidget 44px 圆钮常驻 28/28 基准位，z-95）：
+  // 两者同现时垂直堆叠（胶囊在上、圆钮在下），间距 12px，不硬叠
   .comment-more-fab {
     position: fixed;
     right: 28px;
-    bottom: 28px;
+    bottom: 84px;
     z-index: 90;
     padding: 10px 20px;
     border: 1px solid var(--color-border-light);
