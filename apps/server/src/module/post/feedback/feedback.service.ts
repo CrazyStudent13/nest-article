@@ -41,7 +41,8 @@ export class PostFeedbackService {
   /**
    * 提交反馈（登录用户）
    * 类型字典校验 → 24h 频控 → 单条插入
-   * 无 contact 字段（登录身份已知）、不做 pending 去重（多条不同反馈合法，服务端不做任何合并）
+   * 无 contact 字段（登录身份已知）、不做 pending 去重（多条不同反馈合法，服务端不做任何合并）；
+   * 截图附件经 DTO 前缀/张数校验后归一化（去空去重）序列化为 JSON 落库
    */
   async create(dto: CreateFeedbackDto, userId: number) {
     await this.assertDictValue(dto.type);
@@ -58,10 +59,11 @@ export class PostFeedbackService {
       userId,
       type: dto.type,
       content: dto.content,
+      attachments: this.serializeAttachments(dto.attachments),
       status: FeedbackStatusEnum.PENDING,
     });
 
-    this.logger.log(`用户 ${userId} 提交反馈（类型 ${dto.type}）`);
+    this.logger.log(`用户 ${userId} 提交反馈（类型 ${dto.type}，附件 ${dto.attachments?.length || 0} 张）`);
     return ResultData.ok({ submitted: true });
   }
 
@@ -105,6 +107,7 @@ export class PostFeedbackService {
       userId: row.feedback_user_id,
       type: row.feedback_type,
       content: row.feedback_content,
+      attachments: this.parseAttachments(row.feedback_attachments),
       status: row.feedback_status,
       replyContent: row.feedback_reply_content,
       adminId: row.feedback_admin_id,
@@ -213,5 +216,24 @@ export class PostFeedbackService {
   /** 通知正文用的反馈内容摘要：超长截断加省略号 */
   private summarize(content: string) {
     return content.length > NOTICE_CONTENT_SUMMARY_LENGTH ? `${content.slice(0, NOTICE_CONTENT_SUMMARY_LENGTH)}…` : content;
+  }
+
+  /** 附件归一化（去空白、去重）后序列化为 JSON 字符串；无附件返回 null */
+  private serializeAttachments(attachments?: string[]) {
+    const urls = [...new Set((attachments || []).map((item) => (item || '').trim()).filter(Boolean))];
+    return urls.length ? JSON.stringify(urls) : null;
+  }
+
+  /** 库内附件 JSON 字符串反序列化为 URL 数组：解析失败或非法形态一律兜底空数组（脏数据不影响列表展示） */
+  private parseAttachments(raw: unknown) {
+    if (!raw || typeof raw !== 'string') {
+      return [];
+    }
+    try {
+      const parsed = JSON.parse(raw);
+      return Array.isArray(parsed) && parsed.every((item) => typeof item === 'string') ? parsed : [];
+    } catch {
+      return [];
+    }
   }
 }

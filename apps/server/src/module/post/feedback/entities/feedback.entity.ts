@@ -30,6 +30,13 @@ export class PostFeedbackEntity extends DeleteStatusEntity {
   @Column({ type: 'varchar', name: 'content', length: 500, comment: '反馈内容（1-500 字）' })
   public content: string;
 
+  @ApiProperty({ type: String, description: '截图附件（JSON 数组字符串）', required: false })
+  // 存 JSON 数组字符串（如 '["/profile/upload/feedback/x.png"]'）：URL 全为 /profile/ 前缀的
+  // 本站上传通道产物（服务端 DTO 校验前缀与张数），无附件为 null——不建关联表，
+  // 反馈附件只随单据读写，无独立生命周期（同举报快照的单列口径）
+  @Column({ type: 'varchar', name: 'attachments', length: 1000, nullable: true, comment: '截图附件（JSON 数组字符串，/profile/ 相对 URL，至多 3 张，无附件 null）' })
+  public attachments: string;
+
   @ApiProperty({ type: String, description: '处理状态（0 待处理 1 已回复 2 已关闭）' })
   @Column({ type: 'char', name: 'status', length: 1, default: '0', comment: '处理状态（0 待处理 1 已回复 2 已关闭）' })
   public status: string;

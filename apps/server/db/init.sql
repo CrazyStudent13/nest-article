@@ -5994,6 +5994,8 @@ create table
     user_id int not null comment '提交人用户ID（登录身份，无 contact 字段）',
     type char(1) not null comment '反馈类型（1 功能建议 2 问题反馈 3 其他，字典 post_feedback_type）',
     content varchar(500) not null comment '反馈内容（1-500 字）',
+    -- 截图附件：JSON 数组字符串（/profile/ 相对 URL，服务端 DTO 校验前缀与张数）；不建关联表，只随单据读写
+    attachments varchar(1000) default null comment '截图附件（JSON 数组字符串，/profile/ 相对 URL，至多 3 张，无附件 null）',
     status char(1) default '0' comment '处理状态（0 待处理 1 已回复 2 已关闭）',
     reply_content varchar(500) default null comment '管理员回复内容（回复必填，关闭可空说明）',
     admin_id int default null comment '处理人用户ID（未处理 null）',

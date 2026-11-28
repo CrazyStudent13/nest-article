@@ -96,6 +96,34 @@ describe('PostFeedbackService', () => {
 
       expect(feedbackRepo.insert).toHaveBeenCalledTimes(2);
     });
+
+    it('带截图附件：归一化（去空白/去重）后 JSON 序列化落库', async () => {
+      feedbackRepo.count.mockResolvedValue(0);
+
+      await service.create(
+        {
+          type: '2',
+          content: '带图反馈',
+          attachments: ['/profile/upload/feedback/a.png', ' /profile/upload/feedback/b.png ', '/profile/upload/feedback/a.png'],
+        },
+        7,
+      );
+
+      const inserted = feedbackRepo.insert.mock.calls[0][0] as Record<string, unknown>;
+      expect(inserted.attachments).toBe(JSON.stringify(['/profile/upload/feedback/a.png', '/profile/upload/feedback/b.png']));
+    });
+
+    it('附件全为空白或未传：attachments 落 null', async () => {
+      feedbackRepo.count.mockResolvedValue(0);
+
+      await service.create({ type: '1', content: '无图反馈', attachments: ['  '] }, 7);
+      const withBlank = feedbackRepo.insert.mock.calls[0][0] as Record<string, unknown>;
+      expect(withBlank.attachments).toBeNull();
+
+      await service.create({ type: '1', content: '无图反馈' }, 7);
+      const withoutField = feedbackRepo.insert.mock.calls[1][0] as Record<string, unknown>;
+      expect(withoutField.attachments).toBeNull();
+    });
   });
 
   describe('findAdminList', () => {
@@ -125,6 +153,7 @@ describe('PostFeedbackService', () => {
             feedback_user_id: 7,
             feedback_type: '2',
             feedback_content: '文章保存时偶尔报错',
+            feedback_attachments: JSON.stringify(['/profile/upload/feedback/a.png']),
             feedback_status: '0',
             feedback_reply_content: null,
             feedback_admin_id: null,
@@ -137,6 +166,7 @@ describe('PostFeedbackService', () => {
             feedback_user_id: 9,
             feedback_type: '1',
             feedback_content: '建议加个夜间模式',
+            feedback_attachments: 'not-json{',
             feedback_status: '1',
             feedback_reply_content: '已在 roadmap',
             feedback_admin_id: 99,
@@ -159,11 +189,14 @@ describe('PostFeedbackService', () => {
       expect(list[0]).toMatchObject({
         userId: 7,
         status: '0',
+        attachments: ['/profile/upload/feedback/a.png'],
         replyAdminName: null,
         userInfo: { userId: 7, nickName: '用户甲', avatar: 'a.png' },
       });
+      // 附件列脏数据兜底为空数组，不影响行展示
       expect(list[1]).toMatchObject({
         replyContent: '已在 roadmap',
+        attachments: [],
         replyAdminName: '管理员乙',
         userInfo: { userId: 9, nickName: '用户乙', avatar: null },
       });
