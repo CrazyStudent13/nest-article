@@ -107,12 +107,10 @@ export class WorkbenchService {
 
     const pageSize = query.pageSize ?? 10;
     const pageNum = query.pageNum ?? 1;
-    // 排序方向经 DTO 枚举校验后内联（ORDER BY 方向无法参数化）；UNION 结果的 ORDER BY 只能引用输出列别名
-    // （create_time 已别名成 submit_time），id 同向兜底同刻记录的稳定序
-    const dir = query.orderRule === 'asc' ? 'ASC' : 'DESC';
+    // 固定按提交时间倒序（排序方向切换已删：分页兜底查找，查详情去对应管理页）；id 同向兜底同刻记录的稳定序
     const rows: Array<{ source: string; id: number; summary: string; submitter_id: number; submit_time: Date; finish_time: Date | null }> =
       await this.userRepo.manager.query(
-        `${unionSql} ORDER BY submit_time ${dir}, id ${dir} LIMIT ?, ?`,
+        `${unionSql} ORDER BY submit_time DESC, id DESC LIMIT ?, ?`,
         [...params, (pageNum - 1) * pageSize, pageSize],
       );
 

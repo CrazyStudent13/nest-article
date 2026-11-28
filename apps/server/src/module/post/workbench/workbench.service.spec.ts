@@ -91,7 +91,7 @@ describe('WorkbenchService', () => {
       expect(res.data.tabs).toEqual({ pending: 3, done: 7 });
     });
 
-    it('排序正序 + 时间范围：ORDER BY ASC 且分支补 BETWEEN，时间参数进谓词', async () => {
+    it('时间范围筛选：分支补 BETWEEN，时间参数进谓词；排序固定倒序', async () => {
       userRepo.manager.query.mockResolvedValueOnce([{ cnt: 0 }]).mockResolvedValueOnce([]);
       reportService.countPending.mockResolvedValue(0);
       feedbackService.countPending.mockResolvedValue(0);
@@ -99,7 +99,7 @@ describe('WorkbenchService', () => {
       feedbackService.countDone.mockResolvedValue(0);
 
       await service.findTodos(
-        { pageNum: 1, pageSize: 10, orderRule: 'asc', params: { beginTime: '2026-11-01', endTime: '2026-11-28' } } as any,
+        { pageNum: 1, pageSize: 10, params: { beginTime: '2026-11-01', endTime: '2026-11-28' } } as any,
         { permissions: ['*:*:*'] } as any,
       );
 
@@ -107,9 +107,8 @@ describe('WorkbenchService', () => {
       expect(countSql).toContain('BETWEEN ? AND ?');
       // 两分支各：1 个 status 参数 + 2 个时间范围参数
       expect(countParams).toEqual(['0', '2026-11-01', '2026-11-28', '0', '2026-11-01', '2026-11-28']);
-      const [listSql, listParams] = userRepo.manager.query.mock.calls[1];
-      expect(listSql).toContain('ORDER BY submit_time ASC, id ASC');
-      expect(listParams.slice(-2)).toEqual([0, 10]);
+      const [listSql] = userRepo.manager.query.mock.calls[1];
+      expect(listSql).toContain('ORDER BY submit_time DESC, id DESC');
     });
 
     it('无权限：空 list/total/tabs，不执行 UNION 查询', async () => {

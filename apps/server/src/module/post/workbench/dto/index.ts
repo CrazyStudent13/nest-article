@@ -13,7 +13,7 @@ export enum WorkbenchTodoTabEnum {
 
 /**
  * 工作台待办队列查询 DTO：分页（PagingDto.params 复用为时间范围 beginTime/endTime，同管理列表 addDateRange 口径）
- * + tab 切换 + 来源筛选 + 排序方向——队列固定按提交时间排序，无关键字搜索字段
+ * + tab 切换 + 来源筛选——队列固定按提交时间倒序（排序方向切换已删：有分页兜底，查详情应去对应管理页，方向切换无实际价值）
  */
 export class ListTodoDto extends PagingDto {
   @ApiProperty({ required: false, enum: WorkbenchTodoTabEnum, description: '待办/已办', default: WorkbenchTodoTabEnum.PENDING })
@@ -25,9 +25,4 @@ export class ListTodoDto extends PagingDto {
   @IsOptional()
   @IsIn(['report', 'feedback'])
   source?: string;
-
-  @ApiProperty({ required: false, enum: ['asc', 'desc'], description: '提交时间排序方向', default: 'desc' })
-  @IsOptional()
-  @IsIn(['asc', 'desc'])
-  orderRule?: 'asc' | 'desc';
 }
