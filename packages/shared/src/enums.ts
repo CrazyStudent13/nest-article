@@ -62,6 +62,26 @@ export enum ReportStatusEnum {
 }
 
 /**
+ * 用户反馈类型：1 功能建议 2 问题反馈 3 其他（与字典 post_feedback_type 的 dictValue 保持一致）
+ * 反馈类型是运营可扩值数据（走字典维护），此枚举仅作取值常量；反馈提交只要求登录不挂权限串
+ */
+export enum FeedbackTypeEnum {
+  SUGGESTION = '1',
+  BUG = '2',
+  OTHER = '3',
+}
+
+/**
+ * 反馈处理状态：0 待处理 1 已回复 2 已关闭（与字典 post_feedback_status 保持一致）
+ * 终态（已回复/已关闭）不可重复处理：服务端按 status='0' 条件更新做乐观锁（同举报处理口径）
+ */
+export enum FeedbackStatusEnum {
+  PENDING = '0',
+  REPLIED = '1',
+  CLOSED = '2',
+}
+
+/**
  * 排序规则：与 server PagingDto.isAsc 的取值约定一致
  */
 export enum SortRuleEnum {
