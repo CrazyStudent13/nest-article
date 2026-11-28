@@ -40,9 +40,10 @@ description: nest-acticle 项目发版流程——版本号决策与全仓对齐
 
 ## 4. docs 发布记录同步
 
-- `apps/docs/releases.md`：版本一览表加一行（版本/日期/主题一句话/`tag`）；「版本详情」顶部插入完整段（发布日期、tag、按 安全/新增/修复/种子/工程化 分节——小版本可合并节）。
-- `apps/docs/.vitepress/config.mts`：侧栏发布记录时间线顶部加 `{ text: 'vX.Y.Z · 日期', link: '/releases#vX-Y-Z' }`。
-- `pnpm --filter docs build` 必须 exit 0（防死链接；localhost 裸链接会被 VitePress 死链检查拦截，写进反引号）。
+- 版本号性质决定动作：中版本（minor）「三处各加一条」，小版本（patch）「并入所属中版本」——一览表不单独成行、详情不单独成节、侧栏不单独成条。详细动作清单见 `apps/docs/releases.md` 页尾「新增一条发布记录」第 2/3 条，要点：
+  - minor：`apps/docs/releases.md` 版本一览表顶部加一行（版本/日期/主题一句话/`tag`），「版本详情」顶部插入完整段 `### vX.Y.Z`（发布日期、tag、按 安全/新增/修复/种子/工程化 分节）；`config.mts` 侧栏顶部加 `{ text: 'vX.Y.Z · 日期', link: '/releases#vX-Y-Z' }`。
+  - patch：版本一览表改所属 minor 行（主题格末尾追加「；vX.Y.Z 一句话」，Git 标签格扩成 `` `vX.Y.0`~`vX.Y.n` ``，日期保持 minor 的）；「版本详情」minor 节包进 `### vX.Y.x（日期起 → 止）` 分组并降为 `####`（小节顺延 `#####`），patch 以 `#### vX.Y.Z` 子节追加到分组末尾（系列内按发布先后）；侧栏 patch 子条目挂进 minor 条目的 `items`（minor 条目设 `collapsed: true`）。
+- `pnpm --filter docs build` 必须 exit 0（防死链接；localhost 裸链接会被 VitePress 死链检查拦截，写进反引号）。注意死链检查不覆盖 `#hash` 锚点——侧栏锚点需对着标题人工核一遍（`.` → `-`）。
 
 ## 5. 合并、打 tag、推送
 
