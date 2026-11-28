@@ -150,9 +150,10 @@ onMounted(fetchList);
     flex-wrap: wrap;
   }
 
-  // 表格区定高≈表头+5 行（每页 5 条恰好填满；不足 5 条/空态留白，切页与切 tab 卡高稳定不跳动）
+  // 表格区定高=表头+5 行（实测 EP 默认行高：40 + 5×39.67≈238，每页 5 条恰好填满无空白；
+  // 不足 5 条/空态留白，切页与切 tab 卡高稳定不跳动。行高随 EP 样式变动时此处需同步）
   .table-fixed {
-    min-height: 298px;
+    min-height: 238px;
   }
 
   // 行即入口：指针提示可点（el-table row-click 无默认指针）

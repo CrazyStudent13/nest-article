@@ -4,10 +4,8 @@
          来源/时间范围/排序筛选），行点击带 status=0 深链跳对应管理页处理；右侧独立问候小卡 -->
     <el-row :gutter="16">
       <el-col :xs="24" :md="18">
+        <!-- 卡头不设标题：待办/已办 tabs 自明语义（2026-11-28 用户拍板去掉「待办处理」标题） -->
         <el-card class="workbench-card">
-          <template #header>
-            <span class="card-title">待办处理</span>
-          </template>
           <WorkbenchTodoList :meta="todoMeta" />
         </el-card>
       </el-col>
@@ -48,12 +46,6 @@ const todoMeta = {
 .home {
   .workbench-card {
     border-radius: 8px;
-  }
-
-  .card-title {
-    font-size: 16px;
-    font-weight: 600;
-    color: #303133;
   }
 
   // 问候小卡：与待办卡同高（el-row 拉伸 + 卡片撑满），内容垂直居中
