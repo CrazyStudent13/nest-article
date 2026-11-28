@@ -100,10 +100,15 @@ const onFilesChange = async (event: Event) => {
   await uploadFiles(files)
 }
 
-// 粘贴截图：内容框 paste 事件里截获剪贴板图片文件，走同一上传通道（文本粘贴不受影响）
+// 粘贴截图：内容框 paste 事件里截获剪贴板图片文件，走同一上传通道（文本粘贴不受影响）。
+// 剪贴板同时带文字与位图时（聊天窗口/截图工具复制文字常附位图）优先尊重文字：不拦默认粘贴、忽略图——
+// 用户粘的是字，不应冒出一张文字截图；只有纯图（无 text/plain）才拦下上传
 const onPaste = async (event: ClipboardEvent) => {
   const files = Array.from(event.clipboardData?.files || []).filter((file) => file.type.startsWith('image/'))
   if (!files.length) {
+    return
+  }
+  if (event.clipboardData?.getData('text/plain')?.trim()) {
     return
   }
   event.preventDefault()
