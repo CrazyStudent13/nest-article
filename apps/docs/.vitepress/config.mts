@@ -62,26 +62,48 @@ export default defineConfig({
       '/development-tips/': [
         {
           text: '开发',
-          items: [{ text: '协作开发', link: '/development-tips/partner' }],
+          items: [
+            { text: '协作开发', link: '/development-tips/partner' },
+            { text: '发布记录维护', link: '/development-tips/release-notes' },
+          ],
         },
       ],
       '/releases': [
         {
           text: '发布记录',
           items: [
-            { text: 'v1.6.1 · 2026-11-29', link: '/releases#v1-6-1' },
-            { text: 'v1.6.0 · 2026-11-28', link: '/releases#v1-6-0' },
+            { text: 'v1.7.0 · 2026-11-29', link: '/releases#v1-7-0' },
+            {
+              text: 'v1.6.0 · 2026-11-28',
+              link: '/releases#v1-6-0',
+              collapsed: true,
+              items: [{ text: 'v1.6.1 · 2026-11-29', link: '/releases#v1-6-1' }],
+            },
             { text: 'v1.5.0 · 2026-11-28', link: '/releases#v1-5-0' },
-            { text: 'v1.4.3 · 2026-11-28', link: '/releases#v1-4-3' },
-          { text: 'v1.4.2 · 2026-11-28', link: '/releases#v1-4-2' },
-          { text: 'v1.4.1 · 2026-11-28', link: '/releases#v1-4-1' },
-            { text: 'v1.4.0 · 2026-11-27', link: '/releases#v1-4-0' },
+            {
+              text: 'v1.4.0 · 2026-11-27',
+              link: '/releases#v1-4-0',
+              collapsed: true,
+              items: [
+                { text: 'v1.4.1 · 2026-11-28', link: '/releases#v1-4-1' },
+                { text: 'v1.4.2 · 2026-11-28', link: '/releases#v1-4-2' },
+                { text: 'v1.4.3 · 2026-11-28', link: '/releases#v1-4-3' },
+              ],
+            },
             { text: 'v1.3.0 · 2026-11-25', link: '/releases#v1-3-0' },
-            { text: 'v1.2.1 · 2026-11-23', link: '/releases#v1-2-1' },
-            { text: 'v1.2.0 · 2026-11-17', link: '/releases#v1-2-0' },
+            {
+              text: 'v1.2.0 · 2026-11-17',
+              link: '/releases#v1-2-0',
+              collapsed: true,
+              items: [{ text: 'v1.2.1 · 2026-11-23', link: '/releases#v1-2-1' }],
+            },
             { text: 'v1.1.0 · 2026-11-15', link: '/releases#v1-1-0' },
-            { text: 'v1.0.1 · 2026-10-25', link: '/releases#v1-0-1' },
-            { text: 'v1.0.0 · 2026-10-25', link: '/releases#v1-0-0' },
+            {
+              text: 'v1.0.0 · 2026-10-25',
+              link: '/releases#v1-0-0',
+              collapsed: true,
+              items: [{ text: 'v1.0.1 · 2026-10-25', link: '/releases#v1-0-1' }],
+            },
           ],
         },
       ],

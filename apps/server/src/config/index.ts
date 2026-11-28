@@ -83,6 +83,12 @@ export default () => {
       pass: process.env.MAIL_PASS || fileConfig.mail?.pass || '',
       from: process.env.MAIL_FROM || fileConfig.mail?.from || '',
     },
+    swagger: {
+      ...fileConfig.swagger,
+      // docker 镜像固定 NODE_ENV=production（prod.yml enable: false），文档开关只能靠环境变量打开：
+      // compose 传 SWAGGER_ENABLE，未设置时维持 yml 值（缺省 false），fail-safe 语义不变
+      enable: String(process.env.SWAGGER_ENABLE ?? fileConfig.swagger?.enable ?? false) === 'true',
+    },
   };
 
   // 必填项缺失直接 fail fast，禁止空密钥静默启动

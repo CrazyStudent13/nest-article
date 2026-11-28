@@ -711,6 +711,32 @@ values
     '0'
   );
 
+insert into
+  sys_menu
+values
+  (
+    '2014',
+    '项目文档',
+    '3',
+    '4',
+    'http://localhost:8888/manual/',
+    null,
+    '',
+    '0',
+    '0',
+    'C',
+    '0',
+    '0',
+    '',
+    'guide',
+    'admin',
+    sysdate(),
+    '',
+    null,
+    '项目文档外链菜单（新窗口打开，部署换域名经菜单管理改 path）',
+    '0'
+  );
+
 -- 内容管理二级菜单
 insert into
   sys_menu
@@ -2881,6 +2907,11 @@ insert into
   sys_role_menu
 values
   ('2', '117');
+
+insert into
+  sys_role_menu
+values
+  ('2', '2014');
 
 insert into
   sys_role_menu

@@ -1,6 +1,6 @@
 {
   "name": "@nest-acticle/shared",
-  "version": "1.6.1",
+  "version": "1.7.0",
   "private": true,
   "description": "monorepo 契约共享包：响应信封/分页契约/状态枚举/文章·专栏类型（零运行时依赖）",
   "main": "./dist/index.js",

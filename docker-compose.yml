@@ -45,6 +45,8 @@ services:
     environment:
       NODE_ENV: production
       SERVER_PORT: ${SERVER_PORT:-8080}
+      # 文档开关：镜像固定 NODE_ENV=production（prod.yml 关闭），本地/内网想看接口文档在 .env 设 true
+      SWAGGER_ENABLE: ${SWAGGER_ENABLE:-false}
       MYSQL_HOST: mysql
       MYSQL_PORT: 3306
       MYSQL_USERNAME: ${MYSQL_USERNAME:-root}

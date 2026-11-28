@@ -1,6 +1,6 @@
 {
   "name": "admin",
-  "version": "1.6.1",
+  "version": "1.7.0",
   "type": "module",
   "description": "nest-acticle 博客平台管理后台（Vue3 + Element Plus）",
   "author": "crazystudent13",

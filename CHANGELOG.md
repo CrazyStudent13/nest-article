@@ -2,6 +2,28 @@
 
 更细粒度的过程记录（审查 → 修复 → 验收全程）见 [CODE-REVIEW-2026-11-20.md](./CODE-REVIEW-2026-11-20.md)。
 
+## v1.7.0（2026-11-29）
+
+API 文档链路修复与管理端「项目文档」菜单（minor 版）：修复文档路由挂载斜杠与规格路径三处断点、文档开关走环境变量、管理端新增「项目文档」外链菜单；docs 发布记录页改版为折叠表格与折叠详情。
+
+> 升级提示：**含种子变更（菜单 2014）**——全新导入跑 init.sql 无需处理；存量库勿重跑全量 init.sql（drop 重建），按下述增量 SQL 执行即可（menu_id 2014 已占用请顺延；path 按部署环境改文档站地址）：
+
+```sql
+-- 菜单 2014：项目文档（系统工具目录下，外链新窗口打开文档站）
+insert into sys_menu (menu_id, menu_name, parent_id, order_num, path, component, query, is_frame, is_cache, menu_type, visible, status, perms, icon, create_by, create_time, update_by, update_time, remark, del_flag)
+values (2014, '项目文档', 3, 4, 'http://localhost:8888/manual/', null, '', '0', '0', 'C', '0', '0', '', 'guide', 'admin', sysdate(), '', null, '项目文档外链菜单（新窗口打开，部署换域名经菜单管理改 path）', '0');
+insert into sys_role_menu (role_id, menu_id) values ('2', '2014');
+```
+
+### 变更
+
+- **服务工具文档链路修复与「项目文档」外链菜单**：服务端文档路由挂载补前导斜杠（`app.prefix='api'` 无前导斜杠致 swagger-ui/docs 永不匹配、文档页不可达），规格统一挂 `/api/openapi.json`（随 `swagger.enable` 开关；nginx 根路径 404 兜底保留）；`swagger.enable` 新增 `SWAGGER_ENABLE` 环境变量覆盖（docker 镜像固定 NODE_ENV=production，compose 贯通，`.env` 缺省 false 不泄露）；nginx 静态文档页（Swagger UI/Redoc）与管理端 Apifox 导入卡片改读 `/api/openapi.json`；管理端新增菜单 2014「项目文档」——外链菜单（C 型，`is_frame=0`，新窗口打开文档站 `/manual/`），挂「系统工具」目录下与「系统接口」平级，role 2 授权（超管免配）；外链 path 存完整 URL，部署换域名需经菜单管理改本行 path
+
+### 工程化
+
+- **docs 发布记录页改版**：「版本一览」表格组件化为 Element 风格折叠表格（`ReleaseOverview.vue`，中版本行展开小版本行、点版本号直达详情折叠组、Git 标签区间自动生成，数据随组件 `releases` 数组维护）；版本详情 7 个版本组改 details 折叠（Element 展开行风格，最新版默认展开，侧栏锚点跳转 hashchange 监听自动展开）；「新增一条发布记录」操作清单迁至开发分区「发布记录维护」页（release skill 第 4 步与 releases 页首/页尾引用同步改链，小版本改为入 patches 数组、不再并入 minor 主题格）
+- **docs 发布记录改折叠口径**：小版本（patch）并入所属中版本展示——「版本一览」13 行收敛为 7 行（patch 一句话追加进 minor 行主题格、Git 标签格扩成 `vX.Y.0`~`vX.Y.n` 区间、日期保持 minor 的），「版本详情」按 `### vX.Y.x（日期起 → 止）` 分组、组内版本降为 `####` 子节（小节顺延 `#####`，锚点不变），侧栏时间线 patch 条目缩进挂 minor 条目（`collapsed: true`）；release skill 第 4 步与 releases.md 页尾「新增一条发布记录」同步改口径，并注明 VitePress 死链检查不覆盖 `#hash` 锚点（侧栏锚点需人工核对）
+
 ## v1.6.1（2026-11-29）
 
 管理页未读接入小修复（patch 版）：举报/反馈管理列表接入与工作区互通的逐条已读链路，未读行红点+内容加粗，打开处理弹窗/详情抽屉即标记已读。
