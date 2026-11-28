@@ -1,3 +1,15 @@
+/* 文档内容加宽：默认 .VPDoc .content-container 688px 太窄（版本一览折叠表格五列放不开）。
+   版心随 --vp-layout-max-width 放到 1680，内容本体 1080 封顶；VPDoc 的组件样式是异步注入、
+   晚于 custom.css，必须拉高权重（.VPContent 前缀 0-4-0 > 主题 0-3-0）才压得住 */
+:root {
+  --vp-layout-max-width: 1680px;
+}
+
+.VPContent .VPDoc .content-container,
+.VPContent .VPDoc.has-aside .content-container {
+  max-width: 1080px;
+}
+
 /* 语言切换按钮 */
 .lang-switch {
   display: inline-flex;

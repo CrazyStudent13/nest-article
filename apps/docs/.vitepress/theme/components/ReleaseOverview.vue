@@ -129,7 +129,8 @@ const seriesTags = (r: Release) => [r.version, ...r.patches.map((p) => p.version
 .rt-head,
 .rt-row {
   display: grid;
-  grid-template-columns: 32px 76px 88px minmax(0, 1fr) 148px;
+  /* 标签列 minmax(148px, auto)：随内容伸缩——宽屏多标签单行，窄屏折行 */
+  grid-template-columns: 32px 84px 104px minmax(0, 1fr) minmax(148px, auto);
   align-items: center;
   gap: 8px;
   padding: 10px 16px 10px 6px;
