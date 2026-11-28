@@ -1,4 +1,5 @@
 <!-- 反馈管理（交互管理/反馈管理）：登录用户提交的反馈明细列表，支持反馈类型/处理状态/提交人昵称与时间范围过滤；
+     反馈内容列与处理弹窗展示截图附件缩略图（el-image 点击大图预览，/profile/ 相对 URL 经 getImageUrl 补全）；
      处理弹窗两结论（回复：replyContent 必填，处理结果经 sys_notice 定向通知 type=4 发给提交人；关闭：回复可选简短说明），
      终态不可重复处理（服务端 status='0' 条件更新乐观锁）；提交人昵称/头像由服务端 attachUserInfo 回填（row.userInfo），
      批量删除为物理删除（同举报记录口径，删除不影响已发出的处理通知） -->
@@ -36,7 +37,25 @@
             <dict-tag type="post_feedback_type" :value="row.type" />
           </template>
         </el-table-column>
-        <el-table-column label="反馈内容" prop="content" show-overflow-tooltip min-width="220" />
+        <el-table-column min-width="220">
+          <template #header>反馈内容</template>
+          <template #default="{ row }">
+            <span class="feedback-text">{{ row.content }}</span>
+            <!-- 截图附件缩略图（服务端 /profile/ 相对 URL 经 getImageUrl 补全），点击 el-image 内置大图预览 -->
+            <div v-if="row.attachments?.length" class="feedback-attachments">
+              <el-image
+                v-for="url in row.attachments"
+                :key="url"
+                :initial-index="0"
+                :preview-src-list="row.attachments.map((a) => getImageUrl(a))"
+                :src="getImageUrl(url)"
+                fit="cover"
+                preview-teleported
+                class="feedback-thumb"
+              />
+            </div>
+          </template>
+        </el-table-column>
         <!-- 提交人：服务端 attachUserInfo 回填 userInfo（昵称+头像），头像缺省降级纯昵称 -->
         <el-table-column label="提交人" min-width="140" show-overflow-tooltip>
           <template #default="{ row }">
@@ -97,6 +116,20 @@
         </el-form-item>
         <el-form-item label="反馈内容">
           <span class="feedback-content">{{ handleRow?.content }}</span>
+        </el-form-item>
+        <el-form-item v-if="handleRow?.attachments?.length" label="截图附件">
+          <div class="feedback-attachments">
+            <el-image
+              v-for="url in handleRow.attachments"
+              :key="url"
+              :initial-index="0"
+              :preview-src-list="handleRow.attachments.map((a) => getImageUrl(a))"
+              :src="getImageUrl(url)"
+              fit="cover"
+              preview-teleported
+              class="feedback-thumb-lg"
+            />
+          </div>
         </el-form-item>
         <el-form-item label="处理结论">
           <el-radio-group v-model="handleForm.status">
@@ -214,6 +247,35 @@ feedback.getList();
   color: var(--el-text-color-regular);
   white-space: pre-wrap;
   overflow-wrap: anywhere;
+}
+
+// 截图附件：列表 40px 缩略图行、弹窗 80px 缩略图行；el-image preview-teleported 全屏大图预览
+.feedback-text {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.feedback-attachments {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 4px;
+
+  .feedback-thumb {
+    width: 40px;
+    height: 40px;
+    border-radius: 4px;
+    cursor: zoom-in;
+  }
+
+  .feedback-thumb-lg {
+    width: 80px;
+    height: 80px;
+    border-radius: 6px;
+    cursor: zoom-in;
+  }
 }
 
 .handle-pending {
