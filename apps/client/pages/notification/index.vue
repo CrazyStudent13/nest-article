@@ -1,4 +1,4 @@
-<!-- 通知中心页：左侧四分类竖栏（评论/赞和收藏/新增粉丝/系统通知，均带未读数红标）+ 右侧列表；系统通知接 /api/system/notice/list（scope=mine 只回全员公告+发给我的定向通知，行级 unread 区分已读未读——未读标题深色带红点/已读变淡不加粗；严格逐条已读：进列表不标，点进详情页才标那一条（notice/detail.vue 调 /post/notify/read-notices）；举报反馈是 type=3 定向私密通知，红色「举报反馈」徽标区分）；评论栏双子栏——「收到的评论」接 /api/post/comment/received/list（他人评论我的文章/回复我的评论，掘金式四行结构：动作短句/内容/文章引用行/时间），「我发表的」接 /api/post/comment/my/list（类型徽标区分，支持删除）；赞和收藏栏双子栏——「收到的赞」接 /api/post/like/received/list、「收到的收藏」接 /api/post/collection/received/list（他人把我的文章收进 ta 的公开收藏集，同款结构）；新增粉丝接 /api/post/follow/received/list（谁关注了我，行尾回关按钮三态）；互动三分类进入即逐栏清红标（赞和收藏栏一次推平 like+collect 两水位），系统通知不清；tab 状态同步 ?query，全站唯一通知入口（头部铃铛同款分类） -->
+<!-- 通知中心页：左侧四分类竖栏（评论/赞和收藏/新增粉丝/系统通知，均带未读数红标）+ 右侧列表；系统通知接 /api/system/notice/list（scope=mine 只回全员公告+发给我的定向通知，行级 unread 区分已读未读——未读标题深色带红点/已读变淡不加粗；严格逐条已读：进列表不标，点进详情页才标那一条（notice/detail.vue 调 /post/notify/read-notices）；举报反馈是 type=3 定向私密通知，红色「举报反馈」徽标区分；反馈回复是 type=4 定向私密通知（用户反馈的处理结果），绿色「反馈回复」徽标区分，不单开 tab）；评论栏双子栏——「收到的评论」接 /api/post/comment/received/list（他人评论我的文章/回复我的评论，掘金式四行结构：动作短句/内容/文章引用行/时间），「我发表的」接 /api/post/comment/my/list（类型徽标区分，支持删除）；赞和收藏栏双子栏——「收到的赞」接 /api/post/like/received/list、「收到的收藏」接 /api/post/collection/received/list（他人把我的文章收进 ta 的公开收藏集，同款结构）；新增粉丝接 /api/post/follow/received/list（谁关注了我，行尾回关按钮三态）；互动三分类进入即逐栏清红标（赞和收藏栏一次推平 like+collect 两水位），系统通知不清；tab 状态同步 ?query，全站唯一通知入口（头部铃铛同款分类） -->
 <template>
   <div class="notification-page">
     <div class="notice-panel">
@@ -37,8 +37,8 @@
               :to="{ path: '/notice/detail', query: { id: String(item.noticeId) } }"
             >
               <div class="notice-head">
-                <span class="notice-badge" :class="item.noticeType === '3' ? 'is-report' : item.noticeType === '2' ? 'is-announce' : 'is-info'">
-                  {{ item.noticeType === '3' ? '举报反馈' : item.noticeType === '2' ? '公告' : '通知' }}
+                <span class="notice-badge" :class="badgeClass(item.noticeType)">
+                  {{ badgeLabel(item.noticeType) }}
                 </span>
                 <!-- 已读/未读行级区分：未读=标题深色+行尾红点（服务端按逐条已读标记回传 unread），本次访问可见、下次进入转已读 -->
                 <h3 class="notice-title" :class="{ 'is-unread': item.unread }">{{ item.noticeTitle || '系统消息' }}</h3>
@@ -560,6 +560,10 @@ const formatTime = (value?: string | null) => {
   return formatted === 'Invalid Date' ? '' : formatted
 }
 
+// 系统通知徽标：3 举报反馈（红）/ 4 反馈回复（绿，用户反馈的处理结果通知）/ 2 公告（橙）/ 其余=通知（蓝）
+const badgeClass = (noticeType: string) => (noticeType === '3' ? 'is-report' : noticeType === '4' ? 'is-feedback' : noticeType === '2' ? 'is-announce' : 'is-info')
+const badgeLabel = (noticeType: string) => (noticeType === '3' ? '举报反馈' : noticeType === '4' ? '反馈回复' : noticeType === '2' ? '公告' : '通知')
+
 // ---------- 首屏加载：登录守卫已由 auth middleware 先行（未登录不会到达这里），避免发一轮必然 401 的请求 ----------
 onMounted(() => {
   // 直达分类栏（?tab=comment/like）时同样逐栏清红标
@@ -957,6 +961,12 @@ onMounted(() => {
   &.is-report {
     background-color: rgba(240, 65, 66, 0.1);
     color: #f04142;
+  }
+
+  // 反馈回复（noticeType=4 定向私密通知，用户反馈的处理结果）：绿色浅底，同成功态徽标色系
+  &.is-feedback {
+    background-color: rgba(82, 196, 26, 0.12);
+    color: #52c41a;
   }
 }
 

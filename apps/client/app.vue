@@ -8,6 +8,8 @@
     <AuthModal />
     <CommonConfirmModal />
     <CommonToast />
+    <!-- 全站右下角悬浮反馈入口：登录用户可提交，未登录点击弹登录框后自动开反馈弹窗（登录意图 pattern） -->
+    <FeedbackWidget />
   </ClientOnly>
   <CommonImageCropModal />
 </template>
