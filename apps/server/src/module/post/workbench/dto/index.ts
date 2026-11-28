@@ -1,5 +1,6 @@
-import { IsEnum, IsIn, IsOptional } from 'class-validator';
+import { IsEnum, IsIn, IsNumber, IsOptional, Min } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
+import { Transform } from 'class-transformer';
 import { PagingDto } from 'src/common/dto/index';
 
 /**
@@ -25,4 +26,20 @@ export class ListTodoDto extends PagingDto {
   @IsOptional()
   @IsIn(['report', 'feedback'])
   source?: string;
+}
+
+/**
+ * 标记待办已读 DTO：工作区行点击时调用；幂等由唯一索引 INSERT IGNORE 兜底（重复标记静默）
+ * 个人视图状态写入无内容返回——仅登录不校验源权限（对不可见源标记无泄露无意义），source 枚举校验
+ */
+export class MarkTodoReadDto {
+  @ApiProperty({ required: true, enum: ['report', 'feedback'], description: '待办源' })
+  @IsIn(['report', 'feedback'])
+  source: string;
+
+  @ApiProperty({ required: true, description: '源记录 id' })
+  @Transform(({ value }) => (value ? parseInt(value, 10) : undefined))
+  @IsNumber()
+  @Min(1)
+  id: number;
 }

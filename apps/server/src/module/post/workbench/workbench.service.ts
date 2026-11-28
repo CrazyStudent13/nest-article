@@ -6,7 +6,8 @@ import { hasPermission } from 'src/common/query';
 import { UserDto } from 'src/module/system/user/user.decorator';
 import { ReportStatusEnum, FeedbackStatusEnum } from '@nest-acticle/shared';
 import { UserEntity } from 'src/module/system/user/entities/sys-user.entity';
-import { ListTodoDto, WorkbenchTodoTabEnum } from './dto/index';
+import { ListTodoDto, MarkTodoReadDto, WorkbenchTodoTabEnum } from './dto/index';
+import { PostWorkbenchReadEntity } from './entities/workbench-read.entity';
 import { PostReportService } from '../report/report.service';
 import { PostFeedbackService } from '../feedback/feedback.service';
 
@@ -52,6 +53,8 @@ export class WorkbenchService {
     private readonly feedbackService: PostFeedbackService,
     @InjectRepository(UserEntity)
     private readonly userRepo: Repository<UserEntity>,
+    @InjectRepository(PostWorkbenchReadEntity)
+    private readonly readRepo: Repository<PostWorkbenchReadEntity>,
   ) {}
 
   /**
@@ -123,8 +126,10 @@ export class WorkbenchService {
       submitterName: null as string | null,
       submitTime: row.submit_time,
       finishTime: row.finish_time,
+      isRead: false,
     }));
     await this.attachSubmitterNames(list);
+    await this.attachReadState(list, user.userId);
 
     // tab 徽标计数：有权源全局计数并行相加（与列表查询解耦，切筛选徽标不动）
     const countAcrossSources = async (method: 'countPending' | 'countDone') => {
@@ -136,6 +141,19 @@ export class WorkbenchService {
     const [pending, done] = await Promise.all([countAcrossSources('countPending'), countAcrossSources('countDone')]);
 
     return ResultData.ok({ list, total, tabs: { pending, done } });
+  }
+
+  /**
+   * 标记待办已读（工作区行点击时调用）
+   * 唯一索引 INSERT IGNORE 幂等：重复标记静默（同举报去重的落库口径）；
+   * 个人视图状态写入无内容返回——仅登录不校验源权限（对不可见源标记无泄露无意义），source 枚举由 DTO 校验
+   */
+  async markRead(dto: MarkTodoReadDto, userId: number) {
+    await this.userRepo.manager.query(
+      'INSERT IGNORE INTO post_workbench_read (user_id, source, source_id) VALUES (?, ?, ?)',
+      [userId, dto.source, dto.id],
+    );
+    return ResultData.ok();
   }
 
   /**
@@ -158,6 +176,28 @@ export class WorkbenchService {
     const nameMap = new Map<number, string>(users.map((user) => [user.userId, user.nickName] as [number, string]));
     for (const item of list) {
       item.submitterName = nameMap.get(item.submitterId) ?? null;
+    }
+  }
+
+  /**
+   * 批量回填当前用户的已读状态：无 (user, source, sourceId) 标记 = 未读（前端红点+摘要加粗）
+   * 分页不依赖已读状态，后置批查回填不碰 UNION；按源分组两段 IN 合并一次 Or 查询（消 N+1）
+   */
+  private async attachReadState(list: Array<{ source: string; id: number; isRead: boolean }>, userId: number) {
+    const idsBySource = new Map<string, number[]>();
+    for (const item of list) {
+      idsBySource.set(item.source, [...(idsBySource.get(item.source) || []), item.id]);
+    }
+    if (!idsBySource.size) {
+      return;
+    }
+    const rows = await this.readRepo.find({
+      where: [...idsBySource.entries()].map(([source, ids]) => ({ userId, source, sourceId: In(ids) })),
+      select: ['source', 'sourceId'],
+    });
+    const readKeys = new Set(rows.map((row) => `${row.source}:${row.sourceId}`));
+    for (const item of list) {
+      item.isRead = readKeys.has(`${item.source}:${item.id}`);
     }
   }
 }

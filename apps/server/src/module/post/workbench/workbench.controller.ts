@@ -1,7 +1,7 @@
-import { Controller, Get, Query } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, Post, Query } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { WorkbenchService } from './workbench.service';
-import { ListTodoDto } from './dto/index';
+import { ListTodoDto, MarkTodoReadDto } from './dto/index';
 import { User, UserDto } from 'src/module/system/user/user.decorator';
 
 /**
@@ -32,5 +32,15 @@ export class WorkbenchController {
   @Get('/todos')
   findTodos(@Query() query: ListTodoDto, @User() user: UserDto) {
     return this.workbenchService.findTodos(query, user);
+  }
+
+  /**
+   * 标记待办已读（工作区行点击时调用；幂等，重复标记静默）
+   */
+  @ApiOperation({ summary: '工作台-标记待办已读' })
+  @HttpCode(200)
+  @Post('/read')
+  markRead(@Body() dto: MarkTodoReadDto, @User() user: UserDto) {
+    return this.workbenchService.markRead(dto, user.userId);
   }
 }

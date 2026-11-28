@@ -6008,3 +6008,21 @@ create table
     key idx_user_id (user_id),
     key idx_status (status)
   ) engine = innodb comment = '用户反馈库';
+
+-- ----------------------------
+-- 30、工作台待办逐条已读库
+-- ----------------------------
+drop table if exists post_workbench_read;
+
+create table
+  post_workbench_read (
+    id int not null auto_increment comment '自增 id',
+    user_id int not null comment '标记人用户ID',
+    -- source 与工作台源定义（TODO_SOURCE_DEFS）对齐：report/feedback，文章审核上线时扩展
+    source varchar(20) not null comment '待办源（report 举报 / feedback 反馈）',
+    source_id int not null comment '源记录 id（post_report.id / post_feedback.id）',
+    read_time datetime(3) default current_timestamp(3) comment '标记时间（毫秒粒度，同 post_feedback 口径）',
+    primary key (id),
+    -- 幂等：同一人对同一记录至多一行标记（INSERT IGNORE 防重复插入）
+    unique key uk_user_source_record (user_id, source, source_id)
+  ) engine = innodb comment = '工作台待办逐条已读库';

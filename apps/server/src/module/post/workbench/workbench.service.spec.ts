@@ -3,21 +3,25 @@ import { WorkbenchService } from './workbench.service';
 
 /**
  * 工作台服务核心路径：
- * - findTodos（首页唯一消费方）：待办/已办双 tab、来源筛选∩权限、时间范围进同一谓词、排序方向内联、
- *   total 对 UNION 子查询 COUNT 与列表同口径、tabs 徽标为有权源全局计数、昵称一次 IN 批查回填；
+ * - findTodos（首页唯一消费方）：待办/已办双 tab、来源筛选∩权限、时间范围进同一谓词、排序固定倒序、
+ *   total 对 UNION 子查询 COUNT 与列表同口径、tabs 徽标为有权源全局计数、昵称与已读状态批查回填；
  *   待处理口径归各业务服务自管（countPending/countDone mock 档位）
+ * - markRead：逐条已读标记（唯一索引 INSERT IGNORE 幂等，重复标记静默）
  * - summary：首页改版后前端已不消费（tab 徽标由 todos 响应捎回），保留给二期侧栏角标——回归口径：通配感知过滤
  */
 describe('WorkbenchService', () => {
   const reportService = { countPending: jest.fn(), countDone: jest.fn() };
   const feedbackService = { countPending: jest.fn(), countDone: jest.fn() };
   const userRepo = { find: jest.fn(), manager: { query: jest.fn() } };
+  const readRepo = { find: jest.fn() };
 
   let service: WorkbenchService;
 
   beforeEach(() => {
     jest.resetAllMocks();
-    service = new WorkbenchService(reportService as any, feedbackService as any, userRepo as any);
+    service = new WorkbenchService(reportService as any, feedbackService as any, userRepo as any, readRepo as any);
+    // 默认无已读标记（全未读）
+    readRepo.find.mockResolvedValue([]);
   });
 
   describe('findTodos', () => {
@@ -55,6 +59,51 @@ describe('WorkbenchService', () => {
       expect(res.data.tabs).toEqual({ pending: 3, done: 9 });
       expect(res.data.list[0]).toMatchObject({ source: 'report', submitterName: '张三', finishTime: null });
       expect(userRepo.find).toHaveBeenCalledWith({ where: { userId: In([7, 8]) }, select: ['userId', 'nickName'] });
+    });
+
+    it('已读状态回填：命中标记的行 isRead=true，其余 false；按源分组两段 IN 合并一次查询', async () => {
+      userRepo.manager.query
+        .mockResolvedValueOnce([{ cnt: 2 }])
+        .mockResolvedValueOnce([
+          { source: 'report', id: 9, summary: '《x》', submitter_id: 7, submit_time: new Date('2026-11-28T10:00:00.000Z'), finish_time: null },
+          { source: 'feedback', id: 5, summary: '希望增加夜间模式', submitter_id: 8, submit_time: new Date('2026-11-28T09:00:00.000Z'), finish_time: null },
+        ]);
+      readRepo.find.mockResolvedValue([{ source: 'report', sourceId: 9 }]);
+      userRepo.find.mockResolvedValue([
+        { userId: 7, nickName: '张三' },
+        { userId: 8, nickName: '李四' },
+      ]);
+      reportService.countPending.mockResolvedValue(2);
+      feedbackService.countPending.mockResolvedValue(0);
+      reportService.countDone.mockResolvedValue(0);
+      feedbackService.countDone.mockResolvedValue(0);
+
+      const res = await service.findTodos({ pageNum: 1, pageSize: 10 } as any, { permissions: ['*:*:*'], userId: 1 } as any);
+
+      expect(readRepo.find).toHaveBeenCalledWith({
+        where: [
+          { userId: 1, source: 'report', sourceId: In([9]) },
+          { userId: 1, source: 'feedback', sourceId: In([5]) },
+        ],
+        select: ['source', 'sourceId'],
+      });
+      expect(res.data.list.map((item: { isRead: boolean }) => item.isRead)).toEqual([true, false]);
+    });
+
+    describe('markRead', () => {
+      it('标记已读：INSERT IGNORE 参数化落库（唯一索引兜底幂等），返回成功信封', async () => {
+        const res = await service.markRead({ source: 'report', id: 9 } as any, 1);
+
+        expect(userRepo.manager.query).toHaveBeenCalledWith('INSERT IGNORE INTO post_workbench_read (user_id, source, source_id) VALUES (?, ?, ?)', [1, 'report', 9]);
+        expect(res.code).toBe(200);
+      });
+
+      it('重复标记：同样 INSERT IGNORE 静默（唯一索引挡住，不报错）', async () => {
+        const res = await service.markRead({ source: 'feedback', id: 5 } as any, 1);
+
+        expect(userRepo.manager.query).toHaveBeenCalledWith('INSERT IGNORE INTO post_workbench_read (user_id, source, source_id) VALUES (?, ?, ?)', [1, 'feedback', 5]);
+        expect(res.code).toBe(200);
+      });
     });
 
     it('已办 tab：分支换 status IN 终态条件，办结时间列随行返回', async () => {

@@ -2795,6 +2795,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/post/workbench/read": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 工作台-标记待办已读 */
+        post: operations["WorkbenchController_markRead"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -3374,6 +3391,15 @@ export interface components {
             status: "1" | "2";
             /** @description 回复内容（status=1 必填 1-500 字；status=2 可空简短说明） */
             replyContent?: string;
+        };
+        MarkTodoReadDto: {
+            /**
+             * @description 待办源
+             * @enum {string}
+             */
+            source: "report" | "feedback";
+            /** @description 源记录 id */
+            id: number;
         };
     };
     responses: never;
@@ -7384,6 +7410,27 @@ export interface operations {
             cookie?: never;
         };
         requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    WorkbenchController_markRead: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MarkTodoReadDto"];
+            };
+        };
         responses: {
             200: {
                 headers: {
