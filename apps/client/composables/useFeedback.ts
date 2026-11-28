@@ -5,11 +5,16 @@
 import type { FeedbackPayload, FeedbackSubmitResult } from '@nest-acticle/shared'
 
 export const useFeedback = () => {
-  // 提交反馈：type 为字典 post_feedback_type 的 dictValue；content 1-500 字
+  // 提交反馈：type 为字典 post_feedback_type 的 dictValue；content 1-500 字；
+  // attachments 为 /common/upload 上传后的 /profile/ 相对 URL（至多 3 张，服务端校验）
   const submitFeedback = async (data: FeedbackPayload) => {
     const res = await apiFetch<FeedbackSubmitResult>('/api/post/feedback', {
       method: 'POST',
-      body: { type: data.type, content: data.content }
+      body: {
+        type: data.type,
+        content: data.content,
+        ...(data.attachments?.length ? { attachments: data.attachments } : {})
+      }
     })
     return res.data ?? { submitted: true }
   }
