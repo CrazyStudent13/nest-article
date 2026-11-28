@@ -2761,6 +2761,57 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/post/workbench/summary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 工作台-待办汇总 */
+        get: operations["WorkbenchController_summary"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/post/workbench/todos": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 工作台-待办列表 */
+        get: operations["WorkbenchController_findTodos"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/post/workbench/read": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 工作台-标记待办已读 */
+        post: operations["WorkbenchController_markRead"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -3340,6 +3391,15 @@ export interface components {
             status: "1" | "2";
             /** @description 回复内容（status=1 必填 1-500 字；status=2 可空简短说明） */
             replyContent?: string;
+        };
+        MarkTodoReadDto: {
+            /**
+             * @description 待办源
+             * @enum {string}
+             */
+            source: "report" | "feedback";
+            /** @description 源记录 id */
+            id: number;
         };
     };
     responses: never;
@@ -7303,6 +7363,74 @@ export interface operations {
             cookie?: never;
         };
         requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    WorkbenchController_summary: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    WorkbenchController_findTodos: {
+        parameters: {
+            query?: {
+                /** @description 当前分页 */
+                pageNum?: number;
+                /** @description 每页数量 */
+                pageSize?: number;
+                /** @description 排序字段 */
+                orderByColumn?: string;
+                /** @description 排序规则 */
+                isAsc?: string;
+                /** @description 待办/已办 */
+                tab?: "pending" | "done";
+                /** @description 来源筛选（缺省全部有权源） */
+                source?: "report" | "feedback";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    WorkbenchController_markRead: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MarkTodoReadDto"];
+            };
+        };
         responses: {
             200: {
                 headers: {

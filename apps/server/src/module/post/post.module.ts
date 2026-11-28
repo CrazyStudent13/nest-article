@@ -8,12 +8,13 @@ import { PostCollectionModule } from './collection/collection.module';
 import { PostFollowModule } from './follow/follow.module';
 import { PostReportModule } from './report/report.module';
 import { PostFeedbackModule } from './feedback/feedback.module';
+import { PostWorkbenchModule } from './workbench/workbench.module';
 
 /**
- * Post 模块（文章、专栏、点赞、评论、互动通知、收藏集、关注、举报和用户反馈）
+ * Post 模块（文章、专栏、点赞、评论、互动通知、收藏集、关注、举报、用户反馈和工作台）
  */
 @Module({
-  imports: [PostArticleModule, PostSubjectModule, PostLikeModule, PostCommentModule, PostNotifyModule, PostCollectionModule, PostFollowModule, PostReportModule, PostFeedbackModule],
-  exports: [PostArticleModule, PostSubjectModule, PostLikeModule, PostCommentModule, PostNotifyModule, PostCollectionModule, PostFollowModule, PostReportModule, PostFeedbackModule],
+  imports: [PostArticleModule, PostSubjectModule, PostLikeModule, PostCommentModule, PostNotifyModule, PostCollectionModule, PostFollowModule, PostReportModule, PostFeedbackModule, PostWorkbenchModule],
+  exports: [PostArticleModule, PostSubjectModule, PostLikeModule, PostCommentModule, PostNotifyModule, PostCollectionModule, PostFollowModule, PostReportModule, PostFeedbackModule, PostWorkbenchModule],
 })
 export class PostModule {}

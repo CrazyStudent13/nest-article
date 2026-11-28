@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { In, MoreThan, Repository } from 'typeorm';
+import { In, MoreThan, Not, Repository } from 'typeorm';
 import { ResultData } from 'src/common/utils/result';
 import { BusinessException } from 'src/common/exceptions/business.exception';
 import { applyLike, attachUserInfo, paginate } from 'src/common/query';
@@ -65,6 +65,20 @@ export class PostFeedbackService {
 
     this.logger.log(`用户 ${userId} 提交反馈（类型 ${dto.type}，附件 ${dto.attachments?.length || 0} 张）`);
     return ResultData.ok({ submitted: true });
+  }
+
+  /**
+   * 待处理反馈计数（工作台待办源；物理删除口径无 delFlag 过滤）
+   */
+  async countPending() {
+    return this.feedbackRepo.count({ where: { status: FeedbackStatusEnum.PENDING } });
+  }
+
+  /**
+   * 已处理反馈计数（工作台已办 tab 徽标；已回复/已关闭均计，团队视角不区分处理人）
+   */
+  async countDone() {
+    return this.feedbackRepo.count({ where: { status: Not(FeedbackStatusEnum.PENDING) } });
   }
 
   /**

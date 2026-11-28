@@ -210,3 +210,21 @@ h6 {
     margin: 4px;
   }
 }
+
+// 未读/已读视觉原语（供工作台/各管理列表等复用）
+// 使用契约：.unread-dot 为绝对定位红点，宿主容器需自行 position: relative（如表格摘要列的 .cell）；
+// 颜色走 Element Plus 变量随主题
+.unread-dot {
+  position: absolute;
+  top: 4px;
+  left: 0;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background-color: var(--el-color-danger);
+}
+
+.is-unread {
+  font-weight: 600;
+  color: var(--el-text-color-primary);
+}

@@ -1,60 +1,80 @@
 <template>
   <div class="app-container home">
-    <el-card class="welcome-card">
-      <div class="welcome-body">
-        <h2 class="welcome-title">{{ greeting }}，欢迎回到 nest-acticle 管理后台</h2>
-        <p class="welcome-desc">博客平台内容管理系统：文章 / 专栏 / 评论 / 点赞 / 用户与系统设置均可在左侧菜单进入。</p>
-        <div class="welcome-actions">
-          <el-button :icon="Promotion" type="primary" @click="openSwagger">接口文档</el-button>
-        </div>
-      </div>
-    </el-card>
+    <!-- 待办工作台（政府 OA 式收件箱）：首页唯一要紧内容——统一待办队列（待办/已办双 tab +
+         来源/时间范围/排序筛选），行点击带 status=0 深链跳对应管理页处理；右侧独立问候小卡 -->
+    <el-row :gutter="16">
+      <el-col :xs="24" :md="18">
+        <!-- 卡头不设标题：待办/已办 tabs 自明语义（2026-11-28 用户拍板去掉「待办处理」标题） -->
+        <el-card class="workbench-card">
+          <WorkbenchTodoList :meta="todoMeta" />
+        </el-card>
+      </el-col>
+      <el-col :xs="24" :md="6">
+        <el-card class="greeting-card">
+          <div class="greeting-body">
+            <div class="greeting-main">{{ greeting }}，{{ userStore.name }}</div>
+            <div class="greeting-sub">欢迎回来，今天是 {{ today }}</div>
+          </div>
+        </el-card>
+      </el-col>
+    </el-row>
   </div>
 </template>
 
 <script setup name="Index">
-import { Promotion } from '@element-plus/icons-vue';
+import dayjs from 'dayjs';
+
+import useUserStore from '@/store/modules/user';
+
+const userStore = useUserStore();
 
 const hour = new Date().getHours();
 const greeting = hour < 6 ? '凌晨好' : hour < 12 ? '上午好' : hour < 14 ? '中午好' : hour < 18 ? '下午好' : '晚上好';
+const WEEK_LABELS = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
+const today = `${dayjs().format('YYYY年MM月DD日')} ${WEEK_LABELS[new Date().getDay()]}`;
 
-// 接口文档走 nginx 静态托管（同源根路径，无 /api 前缀）——与「服务工具→接口文档」三入口页同款链接；
-// 服务端 setupApiDocs 挂载路径因 app.prefix 无前导斜杠对请求不可达，加前缀反而 404
-const swaggerUrl = '/swagger-ui/';
-
-const openSwagger = () => {
-  window.open(swaggerUrl, '_blank');
+// ---------- 待办工作台 ----------
+// 展示元数据前端维护：服务端只回 key+count / source 行（无权限源不出现），文案与跳转路由不进契约；
+// 文章审核上线时服务端增量返回 key='audit'，此处补一条映射即可（来源下拉选项与行内标签同源）；未知 key 兜底展示不跳转
+const todoMeta = {
+  report: { tag: '举报', tagType: 'danger', path: '/interaction/report' },
+  feedback: { tag: '反馈', tagType: 'primary', path: '/interaction/feedback' }
 };
 </script>
 
 <style scoped lang="scss">
 .home {
-  .welcome-card {
+  .workbench-card {
     border-radius: 8px;
   }
 
-  .welcome-body {
-    padding: 40px 20px;
+  // 问候小卡：与待办卡同高（el-row 拉伸 + 卡片撑满），内容垂直居中
+  .greeting-card {
+    height: 100%;
+    border-radius: 8px;
+
+    :deep(.el-card__body) {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: calc(100% - 61px);
+    }
+  }
+
+  .greeting-body {
     text-align: center;
   }
 
-  .welcome-title {
-    margin: 0 0 12px;
-    font-size: 24px;
+  .greeting-main {
+    font-size: 20px;
     font-weight: 600;
     color: #303133;
   }
 
-  .welcome-desc {
-    margin: 0 0 24px;
-    font-size: 14px;
+  .greeting-sub {
+    margin-top: 10px;
+    font-size: 13px;
     color: #909399;
-  }
-
-  .welcome-actions {
-    display: flex;
-    justify-content: center;
-    gap: 12px;
   }
 }
 </style>

@@ -160,9 +160,12 @@ import { getImageUrl } from '@/utils/image';
 
 const dateRange = ref([]);
 
+const route = useRoute();
+
 const { post_feedback_type, post_feedback_status } = useDict('post_feedback_type', 'post_feedback_status');
 
 // 反馈管理列表（无新增/编辑；查看与处理合一抽屉）
+// status 初值取工作台卡片深链（?status=0 预置「待处理」筛选）
 const feedback = useCrud({
   api: {
     // 列表查询注入日期范围参数
@@ -171,10 +174,19 @@ const feedback = useCrud({
   },
   idKey: 'id',
   name: '反馈记录',
-  query: { type: '', status: '', userName: '' },
+  query: { type: '', status: route.query.status || '', userName: '' },
   texts: {
     // 物理删除：仅清理记录本身，已发出的处理通知不受影响（同举报记录口径）
     deleteConfirm: (ids) => `确认删除选中的 ${Array.isArray(ids) ? ids.length : 1} 条反馈记录吗？删除为物理删除，不影响已发出的处理通知`
+  }
+});
+
+// 工作台深链的缓存页同步：keep-alive 重进时 route.query 有变则覆盖筛选并重查；
+// 仅显式带参时生效（常规菜单导航不带参，不覆盖用户当前筛选），首次进入走 query 初值不会重复查询
+onActivated(() => {
+  if (route.query.status !== undefined && feedback.queryParams.status !== route.query.status) {
+    feedback.queryParams.status = route.query.status;
+    feedback.handleQuery();
   }
 });
 

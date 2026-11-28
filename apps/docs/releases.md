@@ -10,6 +10,7 @@ outline: false
 
 | 版本   | 发布日期   | 版本主题                                 | Git 标签 |
 | ------ | ---------- | ---------------------------------------- | -------- |
+| v1.6.0 | 2026-11-28 | 管理端首页改工作区：统一待办收件箱 + 逐条已读/未读 | `v1.6.0` |
 | v1.5.0 | 2026-11-28 | 用户反馈模块 v1：提交/截图附件/详情抽屉/定向通知 | `v1.5.0` |
 | v1.4.3 | 2026-11-28 | 发版流程沉淀为 release skill             | `v1.4.3` |
 | v1.4.2 | 2026-11-28 | 总览复审修复包：通知越权读安全修复等     | `v1.4.2` |
@@ -23,6 +24,35 @@ outline: false
 | v1.0.0 | 2026-10-25 | 首个部署版本：字典本地缓存与版本校验     | `v1.0.0` |
 
 ## 版本详情
+
+### v1.6.0
+
+**发布日期**：2026-11-28　**Git 标签**：`v1.6.0`
+
+管理端首页改「工作区」（统一待办收件箱，新功能 minor 版）：政府 OA 式全宽双 tab 待办队列 + 逐条已读/未读，待办聚合接口按权限逐源过滤，取代原「首页」欢迎页。
+
+#### 升级提示
+
+**含数据库变更（30 号表）**——全新导入跑 init.sql 无需处理；存量库勿重跑全量 init.sql（drop 重建），按增量 SQL 建表：
+
+```sql
+create table if not exists post_workbench_read (
+  id int not null auto_increment comment '自增 id',
+  user_id int not null comment '标记人用户ID',
+  source varchar(20) not null comment '待办源（report 举报 / feedback 反馈）',
+  source_id int not null comment '源记录 id（post_report.id / post_feedback.id）',
+  read_time datetime(3) default current_timestamp(3) comment '标记时间（毫秒粒度，同 post_feedback 口径）',
+  primary key (id),
+  unique key uk_user_source_record (user_id, source, source_id)
+) engine = innodb comment = '工作台待办逐条已读库';
+```
+
+#### 新增
+
+- **统一待办队列**（`GET /api/post/workbench/todos`）：待办/已办双 tab（徽标计数随响应捎回，已办=全部已处理记录的团队视角）+ 来源筛选（与权限取交集）+ 时间范围 + 固定提交时间倒序 DB 侧分页（5 条/页）；有权源 UNION ALL 归一化（来源/摘要/发起者/时间），举报摘要快照优先、无快照用举报理由内容兜底；已办 tab 时间列切显示办结时间；行点击跳对应管理页处理（待办行带 `status=0` 深链预置筛选）
+- **已读/未读**：未读行红点+摘要加粗、已读无（红点/加粗），已读口径=工作区行点击而非「处理过」，两 tab 统一；`POST /api/post/workbench/read` 行点击时标记（唯一索引 INSERT IGNORE 幂等），列表行 isRead 按当前用户批查回填；视觉原语抽全局样式（`.unread-dot`/`.is-unread`，供后续管理列表复用）
+- **权限纪律**：聚合接口均仅登录、服务层 `hasPermission`（通配感知）逐源过滤，无权限源连 UNION 分支都不拼；不建通用 todo 内容表（待处理/已处理口径归各业务服务自管 countPending/countDone）
+- **形态**：路由/菜单/tab 名「工作区」（原首页）；左侧待办卡（无卡头标题、工具条整行底线、表格区定高≈5 行、分页 0 条常显）+ 右侧问候小卡；`GET /api/post/workbench/summary` 保留给二期侧栏菜单待办角标复用；文章审核待办源上线时源定义加一条 + 业务服务补计数即可
 
 ### v1.5.0
 

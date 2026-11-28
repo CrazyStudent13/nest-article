@@ -1,6 +1,6 @@
 {
   "name": "@nest-acticle/markdown",
-  "version": "1.5.0",
+  "version": "1.6.0",
   "private": true,
   "description": "monorepo Markdown 渲染共享包：markdown-it+highlight.js 渲染器与 .markdown-body 样式，client/admin 两端 MdViewer 薄壳共用（同一段 markdown 两端输出完全一致的 HTML）",
   "main": "./dist/index.js",

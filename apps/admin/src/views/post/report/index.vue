@@ -130,9 +130,12 @@ import { useDict } from '@/composables/useDict';
 
 const dateRange = ref([]);
 
+const route = useRoute();
+
 const { post_report_target, post_report_reason, post_report_status } = useDict('post_report_target', 'post_report_reason', 'post_report_status');
 
 // 举报管理列表（无新增/编辑；处理走独立弹窗）
+// status 初值取工作台卡片深链（?status=0 预置「待处理」筛选）
 const report = useCrud({
   api: {
     // 列表查询注入日期范围参数
@@ -141,10 +144,19 @@ const report = useCrud({
   },
   idKey: 'id',
   name: '举报记录',
-  query: { targetType: '', reasonType: '', status: '', reporterName: '' },
+  query: { targetType: '', reasonType: '', status: route.query.status || '', reporterName: '' },
   texts: {
     // 物理删除：会释放该举报人对该目标的举报资格（唯一索引约束随行删除解除）
     deleteConfirm: (ids) => `确认删除选中的 ${Array.isArray(ids) ? ids.length : 1} 条举报记录吗？删除后该举报人可对同一目标再次举报`
+  }
+});
+
+// 工作台深链的缓存页同步：keep-alive 重进时 route.query 有变则覆盖筛选并重查；
+// 仅显式带参时生效（常规菜单导航不带参，不覆盖用户当前筛选），首次进入走 query 初值不会重复查询
+onActivated(() => {
+  if (route.query.status !== undefined && report.queryParams.status !== route.query.status) {
+    report.queryParams.status = route.query.status;
+    report.handleQuery();
   }
 });
 
