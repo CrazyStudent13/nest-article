@@ -20,7 +20,13 @@ outline: false
 
 ## 版本详情
 
+<details class="release-group" open>
+<summary>
+
 ### v1.6.x（2026-11-28 → 11-29）
+
+</summary>
+
 
 #### v1.6.0
 
@@ -65,7 +71,16 @@ create table if not exists post_workbench_read (
 
 - **举报/反馈管理列表接入未读效果**：`findAdminList` 响应行新增当前用户 `isRead`（复用 30 号 `post_workbench_read` 逐条已读，共享回填 helper `attachWorkbenchReadState` 收进实体文件供工作台/举报/反馈三处消费）；管理页未读行红点+内容加粗（复用全局 `.unread-dot`/`.is-unread` 原语），打开处理弹窗（举报）/详情抽屉（反馈）即标记已读（乐观置位，失败静默，标记复用 `POST /post/workbench/read`）——工作区与两管理页口径互通（任一处看过即已读）
 
+
+</details>
+
+<details class="release-group">
+<summary>
+
 ### v1.5.0
+
+</summary>
+
 
 **发布日期**：2026-11-28　**Git 标签**：`v1.5.0`
 
@@ -91,7 +106,16 @@ create table if not exists post_workbench_read (
 
 - server Dockerfile 补 `@nest-acticle/utils`（server 依赖 utils 后镜像构建仍只拷 shared，`pnpm -r build` 报 TS2307 的部署阻塞修复）
 
+
+</details>
+
+<details class="release-group">
+<summary>
+
 ### v1.4.x（2026-11-27 → 11-28）
+
+</summary>
+
 
 #### v1.4.0
 
@@ -163,7 +187,16 @@ create table if not exists post_workbench_read (
 
 - `.agents/skills/release/` 随仓库提交：版本号决策基准、8 包对齐、CHANGELOG/docs 同步惯例、--no-ff 合并与 tag 锚点、推送重试、本地种子幂等补齐——此后发版说一句「发版」即按约定执行
 
+
+</details>
+
+<details class="release-group">
+<summary>
+
 ### v1.3.0
+
+</summary>
+
 
 **发布日期**：2026-11-25　**Git 标签**：`v1.3.0`
 
@@ -177,7 +210,16 @@ create table if not exists post_workbench_read (
 
 > **升级提示**：含数据库增量——互动列升 `datetime(3)` 的 4 条 ALTER、新增 `post_follow` 表（27 号表）、`sys_menu` 210/211 关注管理菜单种子。完整 SQL 见根目录 `CHANGELOG.md` v1.3.0 节；容器内灌中文 SQL 需先 `SET NAMES utf8mb4`（否则客户端按 latin1 重读产生双重编码乱码）。
 
+
+</details>
+
+<details class="release-group">
+<summary>
+
 ### v1.2.x（2026-11-17 → 11-23）
+
+</summary>
+
 
 #### v1.2.0
 
@@ -226,7 +268,16 @@ create table if not exists post_workbench_read (
 
 > **升级提示**：本版本含字典种子数据——`sys_dict_type` 增 16 收藏集可见性（`sys_collection_visibility`）/ 17 收藏集类型（`sys_collection_type`），`sys_dict_data` 增 50~53 四项（详见 `apps/server/db/init.sql` 字典区末尾）。存量环境手工执行 INSERT 后需清理 Redis `sys_dict:all` 缓存，并 touch 字典行（`update sys_dict_data set update_time = now()`）推进版本号，前端才会重新拉取。
 
+
+</details>
+
+<details class="release-group">
+<summary>
+
 ### v1.1.0
+
+</summary>
+
 
 **发布日期**：2026-11-15　**Git 标签**：`v1.1.0`
 
@@ -259,7 +310,16 @@ create table if not exists post_workbench_read (
 - 构建环境需 Node ≥ 22，pnpm 版本与 Dockerfile 保持一致
 - 代码生成模块已移除
 
+
+</details>
+
+<details class="release-group">
+<summary>
+
 ### v1.0.x（2026-10-25）
+
+</summary>
+
 
 #### v1.0.0
 
@@ -320,6 +380,9 @@ create table if not exists post_workbench_read (
 
 - 「项目文档」入口仅在开发环境显示；生产环境需先发布文档产物并在 nginx 配置 `/manual` 路由
 
+
+</details>
+
 ## 新增一条发布记录
 
 1. 确认 `master` 已合并完成，打标签并推送：
@@ -338,15 +401,20 @@ create table if not exists post_workbench_read (
      ```
 
      锚点由版本号生成，`.` 会变成 `-`，例如 `v1.1.0` 对应 `#v1-1-0`。
-   - 复制下面的模板，放到「版本详情」的最上方并填写内容，没有的小节可以删除。
+   - 复制下面的模板，放到「版本详情」的最上方并填写内容，没有的小节可以删除；新组 `<details>` 自带 `open`（默认展开最新版），记得同时摘掉上一组 `<details>` 上的 `open`。
 3. **小版本（patch）**——并入所属中版本，不单独成行/成节/成条：
    - 「版本一览」：改所属中版本那一行——主题格末尾追加「；vX.Y.Z 一句话」，Git 标签格扩成 `` `vX.Y.0`~`vX.Y.n` ``（发布日期保持中版本的）。
-   - 「版本详情」：所属中版本节包进 `### vX.Y.x（日期起 → 止）` 分组、自身降为 `####`（其小节顺延降一级为 `#####`）；patch 内容以 `#### vX.Y.Z` 子节追加到分组末尾（系列内按发布先后），小节用 `#####`。锚点规则不变（`.` → `-`），标题降级不影响锚点。
+   - 「版本详情」：所属中版本节包进 `### vX.Y.x（日期起 → 止）` 分组、自身降为 `####`（其小节顺延降一级为 `#####`）；patch 内容以 `#### vX.Y.Z` 子节追加到**同一 `<details>` 分组**末尾（系列内按发布先后），小节用 `#####`。锚点规则不变（`.` → `-`），标题降级不影响锚点。
    - 侧边栏：所属中版本条目设 `collapsed: true` 并挂 `items`，patch 以 `{ text: 'vX.Y.Z · 日期', link: '/releases#vX-Y-Z' }` 追加为子条目。
-4. 中版本模板（patch 子节复用同一模板、标题整体降一级）：
+4. 中版本模板（patch 子节复用同一模板、标题整体降一级；`<details>` 包裹与 `<summary>` 两侧的空行是 Markdown 内嵌 HTML 的解析前提，不能省）：
 
 ```md
+<details class="release-group" open>
+<summary>
+
 ### v1.1.0
+
+</summary>
 
 **发布日期**：YYYY-MM-DD　**Git 标签**：`v1.1.0`
 
@@ -365,4 +433,6 @@ create table if not exists post_workbench_read (
 #### 升级注意
 
 -
+
+</details>
 ```
