@@ -1081,6 +1081,88 @@ values
     '0'
   );
 
+-- 反馈管理菜单：显式列名（对齐 sys_user 种子修正口径，位置插入不再随建表列序漂移）
+insert into
+  sys_menu
+  (menu_id, menu_name, parent_id, order_num, path, component, query, is_frame, is_cache, menu_type, visible, status, perms, icon, create_by, create_time, update_by, update_time, remark, del_flag)
+values
+  (
+    '215',
+    '反馈管理',
+    '6',
+    '6',
+    'feedback',
+    'post/feedback/index',
+    '',
+    '1',
+    '0',
+    'C',
+    '0',
+    '0',
+    'post:feedback:list',
+    'message',
+    'admin',
+    sysdate(),
+    '',
+    null,
+    '反馈管理菜单',
+    '0'
+  );
+
+insert into
+  sys_menu
+  (menu_id, menu_name, parent_id, order_num, path, component, query, is_frame, is_cache, menu_type, visible, status, perms, icon, create_by, create_time, update_by, update_time, remark, del_flag)
+values
+  (
+    '216',
+    '反馈处理',
+    '215',
+    '1',
+    '',
+    '',
+    '',
+    '1',
+    '0',
+    'F',
+    '0',
+    '0',
+    'post:feedback:handle',
+    'form',
+    'admin',
+    sysdate(),
+    '',
+    null,
+    '反馈处理权限',
+    '0'
+  );
+
+insert into
+  sys_menu
+  (menu_id, menu_name, parent_id, order_num, path, component, query, is_frame, is_cache, menu_type, visible, status, perms, icon, create_by, create_time, update_by, update_time, remark, del_flag)
+values
+  (
+    '217',
+    '反馈删除',
+    '215',
+    '2',
+    '',
+    '',
+    '',
+    '1',
+    '0',
+    'F',
+    '0',
+    '0',
+    'post:feedback:remove',
+    'form',
+    'admin',
+    sysdate(),
+    '',
+    null,
+    '反馈删除权限',
+    '0'
+  );
+
 insert into
   sys_menu
 values
@@ -3127,6 +3209,22 @@ insert into
 values
   ('2', '214');
 
+-- 反馈管理菜单权限（普通角色）：215 反馈管理页（post:feedback:list）、216 处理（post:feedback:handle）、217 删除（post:feedback:remove）
+insert into
+  sys_role_menu
+values
+  ('2', '215');
+
+insert into
+  sys_role_menu
+values
+  ('2', '216');
+
+insert into
+  sys_role_menu
+values
+  ('2', '217');
+
 -- 普通角色补充个人中心自助权限（个人中心接口改用独立权限串，不再被 system:user:query/edit 覆盖）
 insert into
   sys_role_menu
@@ -3608,6 +3706,40 @@ values
     '0'
   );
 
+insert into
+  sys_dict_type
+  (dict_id, dict_name, dict_type, status, create_by, create_time, update_by, update_time, remark, del_flag)
+values
+  (
+    22,
+    '反馈类型',
+    'post_feedback_type',
+    '0',
+    'admin',
+    sysdate(),
+    '',
+    null,
+    '用户反馈类型列表（登录态专用不公开——游客不可提交反馈，管理端/用户弹窗均走登录态读取）',
+    '0'
+  );
+
+insert into
+  sys_dict_type
+  (dict_id, dict_name, dict_type, status, create_by, create_time, update_by, update_time, remark, del_flag)
+values
+  (
+    23,
+    '反馈处理状态',
+    'post_feedback_status',
+    '0',
+    'admin',
+    sysdate(),
+    '',
+    null,
+    '用户反馈处理状态列表',
+    '0'
+  );
+
 -- 公开字典：游客（未登录）可读，其余字典仍要求登录
 update sys_dict_type
 set
@@ -3973,6 +4105,27 @@ values
     '',
     null,
     '举报反馈（sys_notice.user_id 定向私密通知，业务侧程序写入）',
+    '0'
+  );
+
+insert into
+  sys_dict_data
+values
+  (
+    75,
+    4,
+    '反馈回复',
+    '4',
+    'sys_notice_type',
+    '',
+    'warning',
+    'N',
+    '0',
+    'admin',
+    sysdate(),
+    '',
+    null,
+    '反馈回复（sys_notice.user_id 定向私密通知，业务侧程序写入——用户反馈回复/关闭通知）',
     '0'
   );
 
@@ -5088,6 +5241,132 @@ values
     '0'
   );
 
+insert into
+  sys_dict_data
+values
+  (
+    69,
+    1,
+    '功能建议',
+    '1',
+    'post_feedback_type',
+    '',
+    'primary',
+    'N',
+    '0',
+    'admin',
+    sysdate(),
+    '',
+    null,
+    '反馈类型-功能建议',
+    '0'
+  );
+
+insert into
+  sys_dict_data
+values
+  (
+    70,
+    2,
+    '问题反馈',
+    '2',
+    'post_feedback_type',
+    '',
+    'danger',
+    'N',
+    '0',
+    'admin',
+    sysdate(),
+    '',
+    null,
+    '反馈类型-问题反馈',
+    '0'
+  );
+
+insert into
+  sys_dict_data
+values
+  (
+    71,
+    3,
+    '其他',
+    '3',
+    'post_feedback_type',
+    '',
+    'info',
+    'N',
+    '0',
+    'admin',
+    sysdate(),
+    '',
+    null,
+    '反馈类型-其他',
+    '0'
+  );
+
+insert into
+  sys_dict_data
+values
+  (
+    72,
+    1,
+    '待处理',
+    '0',
+    'post_feedback_status',
+    '',
+    'warning',
+    'Y',
+    '0',
+    'admin',
+    sysdate(),
+    '',
+    null,
+    '反馈状态-待处理',
+    '0'
+  );
+
+insert into
+  sys_dict_data
+values
+  (
+    73,
+    2,
+    '已回复',
+    '1',
+    'post_feedback_status',
+    '',
+    'success',
+    'N',
+    '0',
+    'admin',
+    sysdate(),
+    '',
+    null,
+    '反馈状态-已回复（sys_notice 定向通知 noticeType=4）',
+    '0'
+  );
+
+insert into
+  sys_dict_data
+values
+  (
+    74,
+    3,
+    '已关闭',
+    '2',
+    'post_feedback_status',
+    '',
+    'info',
+    'N',
+    '0',
+    'admin',
+    sysdate(),
+    '',
+    null,
+    '反馈状态-已关闭（终态不可重复处理）',
+    '0'
+  );
+
 -- 字典模块：仅用于管理端左侧树分组展示，不参与任何接口读取；未命中的字典归入「未分类」
 update sys_dict_type
 set
@@ -5125,7 +5404,7 @@ update sys_dict_type
 set
   dict_module = '社区互动'
 where
-  dict_type in ('post_report_target', 'post_report_reason', 'post_report_status');
+  dict_type in ('post_report_target', 'post_report_reason', 'post_report_status', 'post_feedback_type', 'post_feedback_status');
 
 -- ----------------------------
 -- 13、参数配置表
@@ -5703,3 +5982,27 @@ create table
     key idx_target_status (target_type, target_id, status),
     key idx_reporter_create (reporter_id, create_time)
   ) engine = innodb comment = '举报库';
+
+-- ----------------------------
+-- 29、用户反馈库
+-- ----------------------------
+drop table if exists post_feedback;
+
+create table
+  post_feedback (
+    id int not null auto_increment comment '反馈 id',
+    user_id int not null comment '提交人用户ID（登录身份，无 contact 字段）',
+    type char(1) not null comment '反馈类型（1 功能建议 2 问题反馈 3 其他，字典 post_feedback_type）',
+    content varchar(500) not null comment '反馈内容（1-500 字）',
+    status char(1) default '0' comment '处理状态（0 待处理 1 已回复 2 已关闭）',
+    reply_content varchar(500) default null comment '管理员回复内容（回复必填，关闭可空说明）',
+    admin_id int default null comment '处理人用户ID（未处理 null）',
+    -- del_flag 仅建表口径完整性保留：反馈不做软删，管理端删除为物理删除（同 post_report 口径）
+    del_flag char(1) default '0' comment '删除标志（0代表存在 1代表删除，业务不软删）',
+    -- reply_time 毫秒粒度：处理结论落库时间（通知投递依据）；create_time 毫秒粒度：24h 频控统计列（同 post_report 口径）
+    reply_time datetime(3) default null comment '处理时间（毫秒粒度）',
+    create_time datetime(3) default current_timestamp(3) comment '提交时间（毫秒粒度，24h 频控统计列）',
+    primary key (id),
+    key idx_user_id (user_id),
+    key idx_status (status)
+  ) engine = innodb comment = '用户反馈库';
