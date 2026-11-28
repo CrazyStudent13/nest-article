@@ -173,26 +173,9 @@ onMounted(fetchList);
     color: #909399;
   }
 
-  // 摘要列：未读行文本加粗；红点绝对定位锚定单元格（需要 cell relative）
+  // 摘要列：未读红点的宿主锚点（红点/加粗样式抽全局 index.scss——.unread-dot/.is-unread）
   :deep(.summary-col .cell) {
     position: relative;
-  }
-
-  // 未读行：摘要加粗
-  .is-unread {
-    font-weight: 600;
-    color: #303133;
-  }
-
-  // 未读红点：6px 小点，落在单元格左上角（cell 内边距区，不占文本流空间、不与文字重叠）
-  :deep(.summary-col .unread-dot) {
-    position: absolute;
-    top: 4px;
-    left: 3px;
-    width: 6px;
-    height: 6px;
-    border-radius: 50%;
-    background-color: #f56c6c;
   }
 
   :deep(.pagination-container) {
