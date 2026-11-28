@@ -12,12 +12,13 @@ import { PostFeedbackService } from '../feedback/feedback.service';
 
 /**
  * 待办源分支定义：UNION 归一化的表/列映射 + 两 tab 的 status 条件与参数 + 服务端管理权限串
+ * report 摘要 = 举报时快照（文章标题+简介/用户昵称），历史/直插数据无快照时用举报理由内容兜底（COALESCE 空串也算空）；
  * 新增待办源（文章审核等）在此加一条定义 + 各业务服务补 countPending/countDone，聚合层零改动
  */
 const TODO_SOURCE_DEFS = {
   report: {
     table: 'post_report',
-    summary: 'target_snapshot',
+    summary: "COALESCE(NULLIF(target_snapshot, ''), reason_content)",
     submitter: 'reporter_id',
     finishTime: 'handle_time',
     pending: { cond: 'status = ?', params: [ReportStatusEnum.PENDING] },

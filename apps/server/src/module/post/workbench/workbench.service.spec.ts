@@ -46,6 +46,8 @@ describe('WorkbenchService', () => {
       expect(countParams).toEqual(['0', '0']);
       const [listSql, listParams] = userRepo.manager.query.mock.calls[1];
       expect(listSql).toContain('FROM post_report');
+      // 举报摘要：快照优先，无快照用举报理由内容兜底
+      expect(listSql).toContain("COALESCE(NULLIF(target_snapshot, ''), reason_content)");
       expect(listSql).toContain('FROM post_feedback');
       expect(listSql).toContain('ORDER BY submit_time DESC, id DESC');
       expect(listParams).toEqual(['0', '0', 0, 10]);
