@@ -131,6 +131,13 @@ export class PostReportService {
   }
 
   /**
+   * 待处理举报计数（工作台待办源；物理删除口径无 delFlag 过滤）
+   */
+  async countPending() {
+    return this.reportRepo.count({ where: { status: ReportStatusEnum.PENDING } });
+  }
+
+  /**
    * 举报管理列表（管理端，联举报人/处理人昵称；目标摘要按类型批查回填）
    * 取数走 getRawAndEntities：report 实体 + join 出的两端用户展示列手动拼平
    */

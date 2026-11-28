@@ -186,6 +186,17 @@ describe('PostReportService', () => {
     });
   });
 
+  describe('countPending', () => {
+    it('待处理举报计数：只按 status=PENDING 查（工作台待办源，无 delFlag 过滤——物理删除口径）', async () => {
+      reportRepo.count.mockResolvedValue(7);
+
+      const count = await service.countPending();
+
+      expect(reportRepo.count).toHaveBeenCalledWith({ where: { status: '0' } });
+      expect(count).toBe(7);
+    });
+  });
+
   describe('findAdminList', () => {
     // 链式 qb：join/条件/分页自返回，末端取 raw 与总数
     const makeChain = () => {

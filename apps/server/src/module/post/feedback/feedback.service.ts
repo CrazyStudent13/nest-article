@@ -68,6 +68,13 @@ export class PostFeedbackService {
   }
 
   /**
+   * 待处理反馈计数（工作台待办源；物理删除口径无 delFlag 过滤）
+   */
+  async countPending() {
+    return this.feedbackRepo.count({ where: { status: FeedbackStatusEnum.PENDING } });
+  }
+
+  /**
    * 反馈管理列表（管理端，联提交人/处理人昵称 + attachUserInfo 回填提交人昵称头像）
    * 取数走 getRawAndEntities：feedback 实体 + join 出的两端用户展示列手动拼平
    */
