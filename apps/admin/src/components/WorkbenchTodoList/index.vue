@@ -32,11 +32,14 @@
             <el-tag :type="meta[row.source]?.tagType || 'info'" size="small">{{ meta[row.source]?.tag || '待办' }}</el-tag>
           </template>
         </el-table-column>
-        <el-table-column label="摘要" min-width="240" show-overflow-tooltip>
-          <template #default="{ row }">
-            <span :class="{ 'summary-unknown': !meta[row.source] }">{{ row.summary || '（无摘要）' }}</span>
-          </template>
-        </el-table-column>
+      <el-table-column label="摘要" min-width="240" show-overflow-tooltip>
+        <template #default="{ row }">
+          <span :class="{ 'summary-unknown': !meta[row.source], 'is-unread': !row.isRead }">
+            <span v-if="!row.isRead" class="unread-dot" />
+            {{ row.summary || '（无摘要）' }}
+          </span>
+        </template>
+      </el-table-column>
         <el-table-column label="发起者" width="130" show-overflow-tooltip>
           <template #default="{ row }">{{ row.submitterName || '—' }}</template>
         </el-table-column>
@@ -59,7 +62,7 @@
 <script setup>
 import { Search } from '@element-plus/icons-vue';
 
-import { listWorkbenchTodos } from '@/api/post/workbench';
+import { listWorkbenchTodos, markTodoRead } from '@/api/post/workbench';
 import { addDateRange } from '@/composables/useCommon';
 
 const props = defineProps({
@@ -106,10 +109,15 @@ const handleQuery = () => {
 
 const router = useRouter();
 
-// 行点击跳对应管理页：待办行带待处理筛选深链（列表按当前排序，目标行通常就在首页附近）；已办行不带筛选
+// 行点击跳对应管理页：待办行带待处理筛选深链（列表按当前排序，目标行通常就在首页附近）；已办行不带筛选。
+// 点击即视为已读（乐观置位不重拉，标记失败静默——下次进来仍是未读可再标记）；未知来源（服务端先行/前端滞后）不跳转不标记
 const goHandle = (row) => {
   const target = props.meta[row.source];
   if (!target) return;
+  if (!row.isRead) {
+    row.isRead = true;
+    markTodoRead({ source: row.source, id: row.id }).catch(() => {});
+  }
   router.push({ path: target.path, query: queryParams.tab === 'pending' ? { status: '0' } : {} });
 };
 
@@ -164,6 +172,22 @@ onMounted(fetchList);
   // 注销/异常账号的待办行昵称兜底
   .summary-unknown {
     color: #909399;
+  }
+
+  // 未读行：摘要加粗 + 前置红点（已读无点无加粗，行点击即已读）
+  .is-unread {
+    font-weight: 600;
+    color: #303133;
+  }
+
+  .unread-dot {
+    display: inline-block;
+    width: 7px;
+    height: 7px;
+    margin-right: 6px;
+    border-radius: 50%;
+    background-color: #f56c6c;
+    vertical-align: middle;
   }
 
   :deep(.pagination-container) {

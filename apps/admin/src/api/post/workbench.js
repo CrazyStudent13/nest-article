@@ -13,3 +13,8 @@ export function listWorkbenchTodos(params) {
   return request({ url: '/post/workbench/todos', method: 'get', params });
 }
 
+// 标记待办已读（行点击时调用；幂等——唯一索引 INSERT IGNORE 兜底，重复标记静默）
+export function markTodoRead(data) {
+  return request({ url: '/post/workbench/read', method: 'post', data });
+}
+
