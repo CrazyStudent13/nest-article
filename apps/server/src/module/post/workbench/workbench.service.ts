@@ -6,16 +6,43 @@ import { hasPermission } from 'src/common/query';
 import { UserDto } from 'src/module/system/user/user.decorator';
 import { ReportStatusEnum, FeedbackStatusEnum } from '@nest-acticle/shared';
 import { UserEntity } from 'src/module/system/user/entities/sys-user.entity';
-import { ListTodoDto } from './dto/index';
+import { ListTodoDto, WorkbenchTodoTabEnum } from './dto/index';
 import { PostReportService } from '../report/report.service';
 import { PostFeedbackService } from '../feedback/feedback.service';
 
 /**
- * 工作台服务：管理端首页待办源计数聚合 + 统一待办队列
- * 待办 = 各业务表待处理状态实时查询（举报/反馈 status='0'，未来文章审核 AuditStatusEnum.AUDITING），
- * 不建通用 todo 表（避免与各源状态机双向同步漂移）；待处理口径归各业务服务自管（countPending）
- * 服务层按 hasPermission（通配感知，同 article.service 口径）逐项过滤——不同管理员权限面不同，
- * 无权限的源不出现在计数与队列中，前端只渲染拿到的卡片/行（前端并发查各模块列表接口会对无权限模块 403 噪音）
+ * 待办源分支定义：UNION 归一化的表/列映射 + 两 tab 的 status 条件与参数 + 服务端管理权限串
+ * 新增待办源（文章审核等）在此加一条定义 + 各业务服务补 countPending/countDone，聚合层零改动
+ */
+const TODO_SOURCE_DEFS = {
+  report: {
+    table: 'post_report',
+    summary: 'target_snapshot',
+    submitter: 'reporter_id',
+    finishTime: 'handle_time',
+    pending: { cond: 'status = ?', params: [ReportStatusEnum.PENDING] },
+    done: { cond: 'status IN (?, ?)', params: [ReportStatusEnum.UPHELD, ReportStatusEnum.DISMISSED] },
+    listPerm: 'post:report:list',
+  },
+  feedback: {
+    table: 'post_feedback',
+    summary: 'content',
+    submitter: 'user_id',
+    finishTime: 'reply_time',
+    pending: { cond: 'status = ?', params: [FeedbackStatusEnum.PENDING] },
+    done: { cond: 'status IN (?, ?)', params: [FeedbackStatusEnum.REPLIED, FeedbackStatusEnum.CLOSED] },
+    listPerm: 'post:feedback:list',
+  },
+} as const;
+
+type TodoSourceKey = keyof typeof TODO_SOURCE_DEFS;
+
+/**
+ * 工作台服务：管理端首页统一待办队列（待办/已办双 tab）
+ * 待办 = 各业务表待处理状态实时查询，不建通用 todo 表（避免与各源状态机双向同步漂移）；
+ * 已办 = 全部已处理记录（团队视角，A 处理的 B 可见——内容队列不是个人任务系统）
+ * 服务层按 hasPermission（通配感知，同 article.service 口径）逐源过滤——无权限的源连 UNION 分支都不拼，
+ * 前端只渲染拿到的行（前端并发查各模块列表接口会对无权限模块 403 噪音）
  */
 @Injectable()
 export class WorkbenchService {
@@ -28,57 +55,66 @@ export class WorkbenchService {
 
   /**
    * 待办汇总：按权限逐项过滤后的待处理计数列表（key + count）
-   * 有权限的源并行计数（各一张表 COUNT），key 为前端卡片映射约定：report/feedback，文章审核上线时增量加项
+   * 首页改版后前端已不再消费（tab 徽标改由 todos 响应捎回），接口保留给二期侧栏菜单待办角标复用
    */
   async summary(user: UserDto) {
-    const entries: Array<[string, Promise<number>]> = [];
-    if (hasPermission(user, 'post:report:list')) {
-      entries.push(['report', this.reportService.countPending()]);
-    }
-    if (hasPermission(user, 'post:feedback:list')) {
-      entries.push(['feedback', this.feedbackService.countPending()]);
-    }
+    const sources = this.permittedSources(user);
+    const entries: Array<[string, Promise<number>]> = sources.map((source) => [
+      source,
+      source === 'report' ? this.reportService.countPending() : this.feedbackService.countPending(),
+    ]);
 
     const counts = await Promise.all(entries.map(([, count]) => count));
     return ResultData.ok({ items: entries.map(([key], index) => ({ key, count: counts[index] })) });
   }
 
   /**
-   * 统一待办队列：有权管理的源 UNION ALL 归一化（source/摘要/提交人/时间）后按提交时间倒序 DB 侧分页
-   * 行只读不承载处理——处理交互长在各自管理页（举报弹窗/反馈抽屉），行点击由前端跳对应管理页（status=0 深链）
-   * total 复用各源 countPending 相加（与 UNION 的 WHERE 同口径，省一次 UNION COUNT）
-   * UNION 分支按权限拼接：无权限的源连行都不出现（同 summary 纪律）；分支内只有枚举常量参数，无外部输入
+   * 统一待办队列（待办/已办双 tab）：有权源 UNION ALL 归一化（source/摘要/提交人/提交时间/办结时间）
+   * 按提交时间排序 DB 侧分页；tab/来源/时间范围筛选进同一谓词，total 对 UNION 子查询 COUNT 与列表同口径
+   * 行只读不承载处理——处理交互长在各自管理页（举报弹窗/反馈抽屉），行点击由前端跳对应管理页：
+   * 待办行带 status=0 深链预置筛选，已办行不带筛选（已办混两种终态，带 0 跳过去看的是待处理反直觉）
+   * tabs 徽标计数 = 有权源全局计数（不受来源/时间筛选影响），随响应捎回供 tab 标签展示
    */
   async findTodos(query: ListTodoDto, user: UserDto) {
+    const permitted = this.permittedSources(user);
+    // 来源筛选与权限取交集：筛选了无权限的源等于没得选，返回空
+    const sources = permitted.filter((source) => !query.source || query.source === source);
+    if (!sources.length) {
+      return ResultData.ok({ list: [], total: 0, tabs: { pending: 0, done: 0 } });
+    }
+
+    const tab = query.tab ?? WorkbenchTodoTabEnum.PENDING;
+    const beginTime = query.params?.beginTime;
+    const endTime = query.params?.endTime;
+
     const branches: string[] = [];
     const params: string[] = [];
-    const counts: Array<Promise<number>> = [];
-    if (hasPermission(user, 'post:report:list')) {
-      branches.push(
-        "SELECT 'report' AS source, id, target_snapshot AS summary, reporter_id AS submitter_id, create_time FROM post_report WHERE status = ?",
-      );
-      params.push(ReportStatusEnum.PENDING);
-      counts.push(this.reportService.countPending());
+    for (const source of sources) {
+      const def = TODO_SOURCE_DEFS[source];
+      const statusDef = tab === WorkbenchTodoTabEnum.DONE ? def.done : def.pending;
+      let branch = `SELECT '${source}' AS source, id, ${def.summary} AS summary, ${def.submitter} AS submitter_id, create_time AS submit_time, ${def.finishTime} AS finish_time FROM ${def.table} WHERE ${statusDef.cond}`;
+      params.push(...statusDef.params);
+      if (beginTime && endTime) {
+        branch += ' AND create_time BETWEEN ? AND ?';
+        params.push(beginTime, endTime);
+      }
+      branches.push(branch);
     }
-    if (hasPermission(user, 'post:feedback:list')) {
-      branches.push(
-        "SELECT 'feedback' AS source, id, content AS summary, user_id AS submitter_id, create_time FROM post_feedback WHERE status = ?",
-      );
-      params.push(FeedbackStatusEnum.PENDING);
-      counts.push(this.feedbackService.countPending());
-    }
-    if (!branches.length) {
-      return ResultData.ok({ list: [], total: 0 });
-    }
+    const unionSql = branches.join(' UNION ALL ');
+
+    const countRows: Array<{ cnt: number }> = await this.userRepo.manager.query(`SELECT COUNT(*) AS cnt FROM ( ${unionSql} ) t`, params);
+    const total = Number(countRows[0]?.cnt || 0);
 
     const pageSize = query.pageSize ?? 10;
     const pageNum = query.pageNum ?? 1;
-    const rows: Array<{ source: string; id: number; summary: string; submitter_id: number; create_time: Date }> =
+    // 排序方向经 DTO 枚举校验后内联（ORDER BY 方向无法参数化）；UNION 结果的 ORDER BY 只能引用输出列别名
+    // （create_time 已别名成 submit_time），id 同向兜底同刻记录的稳定序
+    const dir = query.orderRule === 'asc' ? 'ASC' : 'DESC';
+    const rows: Array<{ source: string; id: number; summary: string; submitter_id: number; submit_time: Date; finish_time: Date | null }> =
       await this.userRepo.manager.query(
-        `${branches.join(' UNION ALL ')} ORDER BY create_time DESC, id DESC LIMIT ?, ?`,
+        `${unionSql} ORDER BY submit_time ${dir}, id ${dir} LIMIT ?, ?`,
         [...params, (pageNum - 1) * pageSize, pageSize],
       );
-    const total = (await Promise.all(counts)).reduce((sum, count) => sum + count, 0);
 
     const list = rows.map((row) => ({
       source: row.source,
@@ -86,11 +122,28 @@ export class WorkbenchService {
       summary: row.summary,
       submitterId: row.submitter_id,
       submitterName: null as string | null,
-      createTime: row.create_time,
+      submitTime: row.submit_time,
+      finishTime: row.finish_time,
     }));
     await this.attachSubmitterNames(list);
 
-    return ResultData.ok({ list, total });
+    // tab 徽标计数：有权源全局计数并行相加（与列表查询解耦，切筛选徽标不动）
+    const countAcrossSources = async (method: 'countPending' | 'countDone') => {
+      const counts = await Promise.all(
+        permitted.map((source) => (source === 'report' ? this.reportService[method]() : this.feedbackService[method]())),
+      );
+      return counts.reduce((sum, count) => sum + count, 0);
+    };
+    const [pending, done] = await Promise.all([countAcrossSources('countPending'), countAcrossSources('countDone')]);
+
+    return ResultData.ok({ list, total, tabs: { pending, done } });
+  }
+
+  /**
+   * 当前用户有权管理的待办源 key 列表（服务层权限过滤的唯一入口，通配感知）
+   */
+  private permittedSources(user: UserDto): TodoSourceKey[] {
+    return (Object.keys(TODO_SOURCE_DEFS) as TodoSourceKey[]).filter((source) => hasPermission(user, TODO_SOURCE_DEFS[source].listPerm));
   }
 
   /**

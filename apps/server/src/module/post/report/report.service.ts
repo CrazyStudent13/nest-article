@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { In, MoreThan, Repository } from 'typeorm';
+import { In, MoreThan, Not, Repository } from 'typeorm';
 import { ResultData } from 'src/common/utils/result';
 import { BusinessException } from 'src/common/exceptions/business.exception';
 import { applyLike, paginate } from 'src/common/query';
@@ -135,6 +135,13 @@ export class PostReportService {
    */
   async countPending() {
     return this.reportRepo.count({ where: { status: ReportStatusEnum.PENDING } });
+  }
+
+  /**
+   * 已处理举报计数（工作台已办 tab 徽标；成立/驳回均计，团队视角不区分处理人）
+   */
+  async countDone() {
+    return this.reportRepo.count({ where: { status: Not(ReportStatusEnum.PENDING) } });
   }
 
   /**

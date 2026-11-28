@@ -3,14 +3,14 @@ import { WorkbenchService } from './workbench.service';
 
 /**
  * 工作台服务核心路径：
- * - summary：按权限逐项过滤（hasPermission 通配感知，超管 '*:*:*' 全见）与并发计数透传；
- *   待处理口径归各业务服务自管（countPending mock 档位），此处只验证聚合纪律
- * - findTodos：有权源 UNION ALL 归一化按时间倒序分页、total 复用 countPending 相加、
- *   提交人昵称一次 IN 批查回填；无权限源连分支都不进
+ * - findTodos（首页唯一消费方）：待办/已办双 tab、来源筛选∩权限、时间范围进同一谓词、排序方向内联、
+ *   total 对 UNION 子查询 COUNT 与列表同口径、tabs 徽标为有权源全局计数、昵称一次 IN 批查回填；
+ *   待处理口径归各业务服务自管（countPending/countDone mock 档位）
+ * - summary：首页改版后前端已不消费（tab 徽标由 todos 响应捎回），保留给二期侧栏角标——回归口径：通配感知过滤
  */
 describe('WorkbenchService', () => {
-  const reportService = { countPending: jest.fn() };
-  const feedbackService = { countPending: jest.fn() };
+  const reportService = { countPending: jest.fn(), countDone: jest.fn() };
+  const feedbackService = { countPending: jest.fn(), countDone: jest.fn() };
   const userRepo = { find: jest.fn(), manager: { query: jest.fn() } };
 
   let service: WorkbenchService;
@@ -20,7 +20,116 @@ describe('WorkbenchService', () => {
     service = new WorkbenchService(reportService as any, feedbackService as any, userRepo as any);
   });
 
-  describe('summary', () => {
+  describe('findTodos', () => {
+    it('默认待办：两源 UNION status=0，total 走 UNION 子查询 COUNT，昵称 IN 批查回填', async () => {
+      userRepo.manager.query
+        .mockResolvedValueOnce([{ cnt: 3 }])
+        .mockResolvedValueOnce([
+          { source: 'report', id: 9, summary: '《x》文章含广告', submitter_id: 7, submit_time: new Date('2026-11-28T10:00:00.000Z'), finish_time: null },
+          { source: 'feedback', id: 5, summary: '希望增加夜间模式', submitter_id: 8, submit_time: new Date('2026-11-28T09:00:00.000Z'), finish_time: null },
+          { source: 'feedback', id: 4, summary: '保存文章时报错', submitter_id: 7, submit_time: new Date('2026-11-27T09:00:00.000Z'), finish_time: null },
+        ]);
+      reportService.countPending.mockResolvedValue(2);
+      feedbackService.countPending.mockResolvedValue(1);
+      reportService.countDone.mockResolvedValue(4);
+      feedbackService.countDone.mockResolvedValue(5);
+      userRepo.find.mockResolvedValue([
+        { userId: 7, nickName: '张三' },
+        { userId: 8, nickName: '李四' },
+      ]);
+
+      const res = await service.findTodos({ pageNum: 1, pageSize: 10 } as any, { permissions: ['*:*:*'] } as any);
+
+      const [countSql, countParams] = userRepo.manager.query.mock.calls[0];
+      expect(countSql).toContain('SELECT COUNT(*)');
+      expect(countSql).toContain('UNION ALL');
+      expect(countParams).toEqual(['0', '0']);
+      const [listSql, listParams] = userRepo.manager.query.mock.calls[1];
+      expect(listSql).toContain('FROM post_report');
+      expect(listSql).toContain('FROM post_feedback');
+      expect(listSql).toContain('ORDER BY submit_time DESC, id DESC');
+      expect(listParams).toEqual(['0', '0', 0, 10]);
+      expect(res.data.total).toBe(3);
+      expect(res.data.tabs).toEqual({ pending: 3, done: 9 });
+      expect(res.data.list[0]).toMatchObject({ source: 'report', submitterName: '张三', finishTime: null });
+      expect(userRepo.find).toHaveBeenCalledWith({ where: { userId: In([7, 8]) }, select: ['userId', 'nickName'] });
+    });
+
+    it('已办 tab：分支换 status IN 终态条件，办结时间列随行返回', async () => {
+      userRepo.manager.query
+        .mockResolvedValueOnce([{ cnt: 1 }])
+        .mockResolvedValueOnce([
+          { source: 'report', id: 3, summary: '《x》', submitter_id: 7, submit_time: new Date('2026-11-27T09:00:00.000Z'), finish_time: new Date('2026-11-27T11:00:00.000Z') },
+        ]);
+      reportService.countPending.mockResolvedValue(0);
+      feedbackService.countPending.mockResolvedValue(0);
+      reportService.countDone.mockResolvedValue(1);
+      feedbackService.countDone.mockResolvedValue(0);
+      userRepo.find.mockResolvedValue([{ userId: 7, nickName: '张三' }]);
+
+      const res = await service.findTodos({ pageNum: 1, pageSize: 10, tab: 'done' } as any, { permissions: ['*:*:*'] } as any);
+
+      const [countSql, countParams] = userRepo.manager.query.mock.calls[0];
+      expect(countSql).toContain('status IN (?, ?)');
+      expect(countParams).toEqual(['1', '2', '1', '2']);
+      expect(res.data.list[0]).toMatchObject({ source: 'report', finishTime: expect.anything(), submitterName: '张三' });
+      expect(res.data.tabs).toEqual({ pending: 0, done: 1 });
+    });
+
+    it('来源筛选：只拼举报分支，反馈计数不进分支但 tab 徽标仍为两源全局', async () => {
+      userRepo.manager.query.mockResolvedValueOnce([{ cnt: 1 }]).mockResolvedValueOnce([]);
+      reportService.countPending.mockResolvedValue(1);
+      feedbackService.countPending.mockResolvedValue(2);
+      reportService.countDone.mockResolvedValue(3);
+      feedbackService.countDone.mockResolvedValue(4);
+
+      const res = await service.findTodos({ pageNum: 1, pageSize: 10, source: 'report' } as any, { permissions: ['*:*:*'] } as any);
+
+      const [countSql] = userRepo.manager.query.mock.calls[0];
+      expect(countSql).toContain('FROM post_report');
+      expect(countSql).not.toContain('FROM post_feedback');
+      expect(res.data.tabs).toEqual({ pending: 3, done: 7 });
+    });
+
+    it('排序正序 + 时间范围：ORDER BY ASC 且分支补 BETWEEN，时间参数进谓词', async () => {
+      userRepo.manager.query.mockResolvedValueOnce([{ cnt: 0 }]).mockResolvedValueOnce([]);
+      reportService.countPending.mockResolvedValue(0);
+      feedbackService.countPending.mockResolvedValue(0);
+      reportService.countDone.mockResolvedValue(0);
+      feedbackService.countDone.mockResolvedValue(0);
+
+      await service.findTodos(
+        { pageNum: 1, pageSize: 10, orderRule: 'asc', params: { beginTime: '2026-11-01', endTime: '2026-11-28' } } as any,
+        { permissions: ['*:*:*'] } as any,
+      );
+
+      const [countSql, countParams] = userRepo.manager.query.mock.calls[0];
+      expect(countSql).toContain('BETWEEN ? AND ?');
+      // 两分支各：1 个 status 参数 + 2 个时间范围参数
+      expect(countParams).toEqual(['0', '2026-11-01', '2026-11-28', '0', '2026-11-01', '2026-11-28']);
+      const [listSql, listParams] = userRepo.manager.query.mock.calls[1];
+      expect(listSql).toContain('ORDER BY submit_time ASC, id ASC');
+      expect(listParams.slice(-2)).toEqual([0, 10]);
+    });
+
+    it('无权限：空 list/total/tabs，不执行 UNION 查询', async () => {
+      const res = await service.findTodos({ pageNum: 1, pageSize: 10 } as any, { permissions: ['system:user:list'] } as any);
+
+      expect(userRepo.manager.query).not.toHaveBeenCalled();
+      expect(reportService.countPending).not.toHaveBeenCalled();
+      expect(feedbackService.countPending).not.toHaveBeenCalled();
+      expect(res.data).toEqual({ list: [], total: 0, tabs: { pending: 0, done: 0 } });
+    });
+
+    it('筛选了无权限的源：返回空（来源筛选与权限取交集）', async () => {
+      const res = await service.findTodos({ pageNum: 1, pageSize: 10, source: 'feedback' } as any, { permissions: ['post:report:list'] } as any);
+
+      expect(userRepo.manager.query).not.toHaveBeenCalled();
+      expect(res.data).toEqual({ list: [], total: 0, tabs: { pending: 0, done: 0 } });
+    });
+  });
+
+  describe('summary（二期侧栏角标预留）', () => {
     it('超级管理员（*:*:*）：两源全返回且计数透传', async () => {
       reportService.countPending.mockResolvedValue(3);
       feedbackService.countPending.mockResolvedValue(1);
@@ -40,102 +149,14 @@ describe('WorkbenchService', () => {
 
       const res = await service.summary({ permissions: ['post:report:list'] } as any);
 
-      expect(reportService.countPending).toHaveBeenCalledTimes(1);
       expect(feedbackService.countPending).not.toHaveBeenCalled();
       expect(res.data.items).toEqual([{ key: 'report', count: 2 }]);
     });
 
-    it('仅反馈权限：只返回反馈源，举报计数不查询', async () => {
-      feedbackService.countPending.mockResolvedValue(5);
-
-      const res = await service.summary({ permissions: ['post:feedback:list'] } as any);
-
-      expect(reportService.countPending).not.toHaveBeenCalled();
-      expect(res.data.items).toEqual([{ key: 'feedback', count: 5 }]);
-    });
-
-    it('无任何待办模块权限：items 为空数组（前端不渲染卡片），不抛 403', async () => {
+    it('无任何待办模块权限：items 为空数组，不抛 403', async () => {
       const res = await service.summary({ permissions: ['system:user:list'] } as any);
 
-      expect(reportService.countPending).not.toHaveBeenCalled();
-      expect(feedbackService.countPending).not.toHaveBeenCalled();
       expect(res.data.items).toEqual([]);
-    });
-
-    it('待处理为 0 的源照常返回（过滤按权限不做，count=0 卡片仍渲染）', async () => {
-      reportService.countPending.mockResolvedValue(0);
-      feedbackService.countPending.mockResolvedValue(0);
-
-      const res = await service.summary({ permissions: ['*:*:*'] } as any);
-
-      expect(res.data.items).toEqual([
-        { key: 'report', count: 0 },
-        { key: 'feedback', count: 0 },
-      ]);
-    });
-  });
-
-  describe('findTodos', () => {
-    it('超级管理员：两源 UNION ALL 归一化按时间倒序分页，total 相加，昵称一次 IN 批查回填', async () => {
-      reportService.countPending.mockResolvedValue(2);
-      feedbackService.countPending.mockResolvedValue(1);
-      userRepo.manager.query.mockResolvedValue([
-        { source: 'report', id: 9, summary: '《x》文章含广告', submitter_id: 7, create_time: new Date('2026-11-28T10:00:00.000Z') },
-        { source: 'feedback', id: 5, summary: '希望增加夜间模式', submitter_id: 8, create_time: new Date('2026-11-28T09:00:00.000Z') },
-        { source: 'feedback', id: 4, summary: '保存文章时报错', submitter_id: 7, create_time: new Date('2026-11-27T09:00:00.000Z') },
-      ]);
-      userRepo.find.mockResolvedValue([
-        { userId: 7, nickName: '张三' },
-        { userId: 8, nickName: '李四' },
-      ]);
-
-      const res = await service.findTodos({ pageNum: 1, pageSize: 5 } as any, { permissions: ['*:*:*'] } as any);
-
-      const [sql, params] = userRepo.manager.query.mock.calls[0];
-      expect(sql).toContain('UNION ALL');
-      expect(sql).toContain('FROM post_report');
-      expect(sql).toContain('FROM post_feedback');
-      expect(sql).toContain('ORDER BY create_time DESC');
-      // 两分支 status 常量在前，LIMIT offset,size 收尾
-      expect(params).toEqual(['0', '0', 0, 5]);
-      expect(res.data.total).toBe(3);
-      expect(res.data.list).toHaveLength(3);
-      expect(res.data.list[0]).toMatchObject({ source: 'report', id: 9, summary: '《x》文章含广告', submitterName: '张三' });
-      expect(userRepo.find).toHaveBeenCalledWith({ where: { userId: In([7, 8]) }, select: ['userId', 'nickName'] });
-    });
-
-    it('仅举报权限：UNION 只含举报分支，反馈计数不查询', async () => {
-      reportService.countPending.mockResolvedValue(2);
-      userRepo.manager.query.mockResolvedValue([]);
-      userRepo.find.mockResolvedValue([]);
-
-      const res = await service.findTodos({ pageNum: 1, pageSize: 5 } as any, { permissions: ['post:report:list'] } as any);
-
-      const sql = userRepo.manager.query.mock.calls[0][0] as string;
-      expect(sql).toContain('FROM post_report');
-      expect(sql).not.toContain('FROM post_feedback');
-      expect(feedbackService.countPending).not.toHaveBeenCalled();
-      expect(res.data.total).toBe(2);
-    });
-
-    it('无任何待办模块权限：空 list/total，不执行 UNION 查询', async () => {
-      const res = await service.findTodos({ pageNum: 1, pageSize: 5 } as any, { permissions: ['system:user:list'] } as any);
-
-      expect(userRepo.manager.query).not.toHaveBeenCalled();
-      expect(reportService.countPending).not.toHaveBeenCalled();
-      expect(feedbackService.countPending).not.toHaveBeenCalled();
-      expect(res.data).toEqual({ list: [], total: 0 });
-    });
-
-    it('分页换算：pageNum=2&pageSize=5 → LIMIT 5,5；缺省 pageSize=10', async () => {
-      userRepo.manager.query.mockResolvedValue([]);
-      userRepo.find.mockResolvedValue([]);
-
-      await service.findTodos({ pageNum: 2, pageSize: 5 } as any, { permissions: ['*:*:*'] } as any);
-      expect(userRepo.manager.query.mock.calls[0][1]).toEqual(['0', '0', 5, 5]);
-
-      await service.findTodos({ pageNum: 1 } as any, { permissions: ['*:*:*'] } as any);
-      expect(userRepo.manager.query.mock.calls[1][1]).toEqual(['0', '0', 0, 10]);
     });
   });
 });

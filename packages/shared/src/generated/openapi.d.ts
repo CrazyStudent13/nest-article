@@ -7374,6 +7374,12 @@ export interface operations {
                 orderByColumn?: string;
                 /** @description 排序规则 */
                 isAsc?: string;
+                /** @description 待办/已办 */
+                tab?: "pending" | "done";
+                /** @description 来源筛选（缺省全部有权源） */
+                source?: "report" | "feedback";
+                /** @description 提交时间排序方向 */
+                orderRule?: "asc" | "desc";
             };
             header?: never;
             path?: never;
