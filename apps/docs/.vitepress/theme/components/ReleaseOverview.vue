@@ -64,6 +64,13 @@ interface Release {
 
 const releases: Release[] = [
   {
+    version: 'v1.7.0',
+    date: '2026-11-29',
+    subject: 'API 文档链路修复、「项目文档」菜单与文档站改版',
+    anchor: 'v1-7-0',
+    patches: []
+  },
+  {
     version: 'v1.6.0',
     date: '2026-11-28',
     subject: '管理端首页改工作区：统一待办收件箱 + 逐条已读/未读',

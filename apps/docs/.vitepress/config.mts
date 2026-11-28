@@ -72,6 +72,7 @@ export default defineConfig({
         {
           text: '发布记录',
           items: [
+            { text: 'v1.7.0 · 2026-11-29', link: '/releases#v1-7-0' },
             {
               text: 'v1.6.0 · 2026-11-28',
               link: '/releases#v1-6-0',

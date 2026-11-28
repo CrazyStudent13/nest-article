@@ -18,6 +18,36 @@ aside: false
 <details class="release-group" open>
 <summary>
 
+### v1.7.0
+
+</summary>
+
+**发布日期**：2026-11-29　**Git 标签**：`v1.7.0`
+
+管理端新增「项目文档」外链菜单，API 文档链路修复，docs 发布记录页改版（折叠表格 + 折叠详情）。
+
+##### 修复
+
+- API 文档链路三处断点：setupApiDocs 挂载补前导斜杠（`app.prefix='api'` 无斜杠致 swagger-ui/docs 永不匹配）、规格统一挂 `/api/openapi.json`（nginx 根路径 404 兜底保留）、nginx 静态文档页与 Apifox 导入卡片改读新路径；banner/CORS/白名单对齐 `/api` 前缀
+
+##### 新增
+
+- 管理端菜单 2014「项目文档」：外链挂「系统工具」与「系统接口」平级，点击新窗口打开文档站 `/manual/`；role 2 授权、超管免配
+- `swagger.enable` 支持 `SWAGGER_ENABLE` 环境变量覆盖（镜像固定 NODE_ENV=production 的唯一打开通道，compose 贯通、缺省 false 不泄露）
+
+##### 种子
+
+- `sys_menu` 2014「项目文档」+ `sys_role_menu` role 2 授权（增量 SQL 见 CHANGELOG v1.7.0 节；menu_id 占用请顺延，path 按部署环境改文档站地址）
+
+##### 工程化
+
+- docs 发布记录页改版：「版本一览」组件化为 Element 风格折叠表格（小版本作中版本折叠行、点版本号直达详情分组、标签区间自动生成）；版本详情 7 组改 details 折叠（锚点跳转自动展开）；操作清单迁至开发分区「发布记录维护」页；文档内容加宽（content-container 688→1080、版心 1680、releases 页去空 aside）
+
+</details>
+
+<details class="release-group">
+<summary>
+
 ### v1.6.x（2026-11-28 → 11-29）
 
 </summary>

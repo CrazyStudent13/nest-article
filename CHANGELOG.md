@@ -2,11 +2,9 @@
 
 更细粒度的过程记录（审查 → 修复 → 验收全程）见 [CODE-REVIEW-2026-11-20.md](./CODE-REVIEW-2026-11-20.md)。
 
-## 未发布
+## v1.7.0（2026-11-29）
 
-### 变更
-
-- **服务工具文档链路修复与「项目文档」外链菜单**：服务端文档路由挂载补前导斜杠（`app.prefix='api'` 无前导斜杠致 swagger-ui/docs 永不匹配、文档页不可达），规格统一挂 `/api/openapi.json`（随 `swagger.enable` 开关；nginx 根路径 404 兜底保留）；`swagger.enable` 新增 `SWAGGER_ENABLE` 环境变量覆盖（docker 镜像固定 NODE_ENV=production，compose 贯通，`.env` 缺省 false 不泄露）；nginx 静态文档页（Swagger UI/Redoc）与管理端 Apifox 导入卡片改读 `/api/openapi.json`；管理端新增菜单 2014「项目文档」——外链菜单（C 型，`is_frame=0`，新窗口打开文档站 `/manual/`），挂「系统工具」目录下与「系统接口」平级，role 2 授权（超管免配）；外链 path 存完整 URL，部署换域名需经菜单管理改本行 path
+API 文档链路修复与管理端「项目文档」菜单（minor 版）：修复文档路由挂载斜杠与规格路径三处断点、文档开关走环境变量、管理端新增「项目文档」外链菜单；docs 发布记录页改版为折叠表格与折叠详情。
 
 > 升级提示：**含种子变更（菜单 2014）**——全新导入跑 init.sql 无需处理；存量库勿重跑全量 init.sql（drop 重建），按下述增量 SQL 执行即可（menu_id 2014 已占用请顺延；path 按部署环境改文档站地址）：
 
@@ -16,6 +14,10 @@ insert into sys_menu (menu_id, menu_name, parent_id, order_num, path, component,
 values (2014, '项目文档', 3, 4, 'http://localhost:8888/manual/', null, '', '0', '0', 'C', '0', '0', '', 'guide', 'admin', sysdate(), '', null, '项目文档外链菜单（新窗口打开，部署换域名经菜单管理改 path）', '0');
 insert into sys_role_menu (role_id, menu_id) values ('2', '2014');
 ```
+
+### 变更
+
+- **服务工具文档链路修复与「项目文档」外链菜单**：服务端文档路由挂载补前导斜杠（`app.prefix='api'` 无前导斜杠致 swagger-ui/docs 永不匹配、文档页不可达），规格统一挂 `/api/openapi.json`（随 `swagger.enable` 开关；nginx 根路径 404 兜底保留）；`swagger.enable` 新增 `SWAGGER_ENABLE` 环境变量覆盖（docker 镜像固定 NODE_ENV=production，compose 贯通，`.env` 缺省 false 不泄露）；nginx 静态文档页（Swagger UI/Redoc）与管理端 Apifox 导入卡片改读 `/api/openapi.json`；管理端新增菜单 2014「项目文档」——外链菜单（C 型，`is_frame=0`，新窗口打开文档站 `/manual/`），挂「系统工具」目录下与「系统接口」平级，role 2 授权（超管免配）；外链 path 存完整 URL，部署换域名需经菜单管理改本行 path
 
 ### 工程化
 
