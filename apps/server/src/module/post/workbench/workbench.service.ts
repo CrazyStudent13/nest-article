@@ -7,7 +7,7 @@ import { UserDto } from 'src/module/system/user/user.decorator';
 import { ReportStatusEnum, FeedbackStatusEnum } from '@nest-acticle/shared';
 import { UserEntity } from 'src/module/system/user/entities/sys-user.entity';
 import { ListTodoDto, MarkTodoReadDto, WorkbenchTodoTabEnum } from './dto/index';
-import { PostWorkbenchReadEntity } from './entities/workbench-read.entity';
+import { attachWorkbenchReadState, PostWorkbenchReadEntity } from './entities/workbench-read.entity';
 import { PostReportService } from '../report/report.service';
 import { PostFeedbackService } from '../feedback/feedback.service';
 
@@ -181,23 +181,22 @@ export class WorkbenchService {
 
   /**
    * 批量回填当前用户的已读状态：无 (user, source, sourceId) 标记 = 未读（前端红点+摘要加粗）
-   * 分页不依赖已读状态，后置批查回填不碰 UNION；按源分组两段 IN 合并一次 Or 查询（消 N+1）
+   * 分页不依赖已读状态，后置批查回填不碰 UNION；混合源队列按源过滤后分次调共享 helper
+   * （attachWorkbenchReadState，管理列表同款）——两次轻查询替代 Or 条件拼装
    */
   private async attachReadState(list: Array<{ source: string; id: number; isRead: boolean }>, userId: number) {
-    const idsBySource = new Map<string, number[]>();
-    for (const item of list) {
-      idsBySource.set(item.source, [...(idsBySource.get(item.source) || []), item.id]);
-    }
-    if (!idsBySource.size) {
-      return;
-    }
-    const rows = await this.readRepo.find({
-      where: [...idsBySource.entries()].map(([source, ids]) => ({ userId, source, sourceId: In(ids) })),
-      select: ['source', 'sourceId'],
-    });
-    const readKeys = new Set(rows.map((row) => `${row.source}:${row.sourceId}`));
-    for (const item of list) {
-      item.isRead = readKeys.has(`${item.source}:${item.id}`);
+    for (const source of idsBySourceOrder(list)) {
+      await attachWorkbenchReadState(
+        list.filter((item) => item.source === source),
+        source,
+        userId,
+        this.readRepo,
+      );
     }
   }
+}
+
+/** 列表内出现的源（保持首次出现顺序，去重）——纯工具函数不入类 */
+function idsBySourceOrder(list: Array<{ source: string }>): string[] {
+  return [...new Set(list.map((item) => item.source))];
 }

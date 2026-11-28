@@ -28,13 +28,13 @@ export class PostFeedbackController {
   }
 
   /**
-   * 反馈管理列表（管理端）
+   * 反馈管理列表（管理端；行含当前用户 isRead，打开详情抽屉即标记已读）
    */
   @ApiOperation({ summary: '反馈-管理列表' })
   @RequirePermission('post:feedback:list')
   @Get('/list')
-  findAdminList(@Query() query: ListFeedbackDto) {
-    return this.feedbackService.findAdminList(query);
+  findAdminList(@Query() query: ListFeedbackDto, @User() user: UserDto) {
+    return this.feedbackService.findAdminList(query, user.userId);
   }
 
   /**

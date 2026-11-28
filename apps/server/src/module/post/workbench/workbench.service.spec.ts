@@ -80,13 +80,10 @@ describe('WorkbenchService', () => {
 
       const res = await service.findTodos({ pageNum: 1, pageSize: 10 } as any, { permissions: ['*:*:*'], userId: 1 } as any);
 
-      expect(readRepo.find).toHaveBeenCalledWith({
-        where: [
-          { userId: 1, source: 'report', sourceId: In([9]) },
-          { userId: 1, source: 'feedback', sourceId: In([5]) },
-        ],
-        select: ['source', 'sourceId'],
-      });
+      // 混合源按源过滤后分次调共享 helper（attachWorkbenchReadState，两段单源 IN）
+      expect(readRepo.find).toHaveBeenCalledTimes(2);
+      expect(readRepo.find).toHaveBeenNthCalledWith(1, { where: { userId: 1, source: 'report', sourceId: In([9]) }, select: ['sourceId'] });
+      expect(readRepo.find).toHaveBeenNthCalledWith(2, { where: { userId: 1, source: 'feedback', sourceId: In([5]) }, select: ['sourceId'] });
       expect(res.data.list.map((item: { isRead: boolean }) => item.isRead)).toEqual([true, false]);
     });
 

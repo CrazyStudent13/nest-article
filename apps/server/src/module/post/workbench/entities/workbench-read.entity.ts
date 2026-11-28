@@ -1,4 +1,4 @@
-import { Column, CreateDateColumn, Entity, PrimaryGeneratedColumn } from 'typeorm';
+import { Column, CreateDateColumn, Entity, In, PrimaryGeneratedColumn, Repository } from 'typeorm';
 import { ApiProperty } from '@nestjs/swagger';
 
 /**
@@ -30,4 +30,27 @@ export class PostWorkbenchReadEntity {
   // precision 3 → datetime(3) 毫秒粒度（同 post_feedback 口径）
   @CreateDateColumn({ type: 'datetime', precision: 3, name: 'read_time', comment: '标记时间（毫秒粒度）' })
   public readTime: Date;
+}
+
+/**
+ * 按当前用户批查回填列表行已读状态（消费方：工作台队列 + 举报/反馈管理列表——逐条已读链路共用）
+ * 无 (user, source, sourceId) 标记 = 未读（前端红点+摘要加粗）；list 行须含 id 与 isRead 字段，
+ * source 为整批固定的待办源（管理列表整表同源；工作台混合源按源过滤后分次调用）
+ * 一次 IN 批查替代逐行查（消 N+1）；无行直接返回不查询
+ */
+export async function attachWorkbenchReadState<T extends { id: number; isRead: boolean }>(
+  list: T[],
+  source: string,
+  userId: number,
+  readRepo: Repository<PostWorkbenchReadEntity>,
+) {
+  const ids = [...new Set(list.map((item) => item.id))];
+  if (!ids.length) {
+    return;
+  }
+  const rows = await readRepo.find({ where: { userId, source, sourceId: In(ids) }, select: ['sourceId'] });
+  const readIds = new Set(rows.map((row) => row.sourceId));
+  for (const item of list) {
+    item.isRead = readIds.has(item.id);
+  }
 }

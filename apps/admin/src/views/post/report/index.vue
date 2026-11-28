@@ -33,12 +33,14 @@
       </el-row>
       <el-table v-loading="report.loading" :data="report.list" @selection-change="report.handleSelectionChange">
         <el-table-column type="selection" width="55" />
-        <!-- 目标列：类型标签 + 举报时快照（文章标题+简介 / 用户昵称，编辑或删除后仍可还原被举报内容）；无快照的旧数据降级当前标题或灰字 -->
-        <el-table-column min-width="220" show-overflow-tooltip>
+        <!-- 目标列：类型标签 + 举报时快照（文章标题+简介 / 用户昵称，编辑或删除后仍可还原被举报内容）；无快照的旧数据降级当前标题或灰字；
+             未读行红点（.unread-dot 全局原语）+目标名加粗，打开处理弹窗即标记已读（与工作区口径一致） -->
+        <el-table-column min-width="220" show-overflow-tooltip class-name="summary-col">
           <template #header>举报目标</template>
           <template #default="{ row }">
+            <span v-if="!row.isRead" class="unread-dot" />
             <dict-tag type="post_report_target" :value="row.targetType" />
-            <span class="target-name" :class="{ 'is-missing': !(row.targetSnapshot || row.targetTitle || row.targetName) }">{{ row.targetSnapshot || row.targetTitle || row.targetName || '内容已删除' }}</span>
+            <span class="target-name" :class="{ 'is-missing': !(row.targetSnapshot || row.targetTitle || row.targetName), 'is-unread': !row.isRead }">{{ row.targetSnapshot || row.targetTitle || row.targetName || '内容已删除' }}</span>
           </template>
         </el-table-column>
         <el-table-column label="举报理由" min-width="120">
@@ -124,6 +126,7 @@
 import { Delete, Edit, Refresh, Search } from '@element-plus/icons-vue';
 
 import { delReport, handleReport, listReport } from '@/api/post/report';
+import { markTodoRead } from '@/api/post/workbench';
 import { addDateRange } from '@/composables/useCommon';
 import { useCrud } from '@/composables/useCrud';
 import { useDict } from '@/composables/useDict';
@@ -180,12 +183,17 @@ const handleSubmitting = ref(false);
 const handleRow = ref(null);
 const handleForm = reactive({ status: '1', handleAction: '', handleRemark: '', stopReason: DEFAULT_STOP_REASON });
 
+// 打开即视为已读：乐观置位（不重拉列表），标记失败静默——与工作区共用 30 号逐条已读（POST /post/workbench/read）
 const openHandle = (row) => {
   handleRow.value = row;
   handleForm.status = '1';
   handleForm.handleAction = '';
   handleForm.handleRemark = '';
   handleForm.stopReason = DEFAULT_STOP_REASON;
+  if (!row.isRead) {
+    row.isRead = true;
+    markTodoRead({ source: 'report', id: row.id }).catch(() => {});
+  }
   handleOpen.value = true;
 };
 
@@ -222,6 +230,11 @@ const resetQuery = () => {
 report.getList();
 </script>
 <style lang="scss" scoped>
+// 未读红点宿主锚点（红点/加粗走全局 .unread-dot/.is-unread）
+:deep(.summary-col .cell) {
+  position: relative;
+}
+
 // 目标列：类型标签与标题同行，标题超长省略
 .target-name {
   margin-left: 6px;

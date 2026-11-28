@@ -1,3 +1,4 @@
+import { In } from 'typeorm';
 import { PublishStatusEnum } from '@nest-acticle/shared';
 import { PostReportService, AUTO_OFFLINE_REPORTERS } from './report.service';
 import { PostReportEntity } from './entities/report.entity';
@@ -34,12 +35,14 @@ describe('PostReportService', () => {
   const userRepo = { findOne: jest.fn(), find: jest.fn(), manager: { transaction: jest.fn() } };
   const dictService = { findOneDataType: jest.fn() };
   const userService = { disableUserSessions: jest.fn() };
+  const readRepo = { find: jest.fn().mockResolvedValue([]) };
 
   let manager: ReturnType<typeof makeManager>;
   let service: PostReportService;
 
   beforeEach(() => {
     jest.resetAllMocks();
+    readRepo.find.mockResolvedValue([]);
     manager = makeManager();
     userRepo.manager.transaction.mockImplementation((cb: (m: unknown) => unknown) => cb(manager));
     reportRepo.manager.transaction.mockImplementation((cb: (m: unknown) => unknown) => cb(manager));
@@ -57,7 +60,7 @@ describe('PostReportService', () => {
       }),
     );
 
-    service = new PostReportService(reportRepo as any, articleRepo as any, userRepo as any, dictService as any, userService as any);
+    service = new PostReportService(reportRepo as any, articleRepo as any, userRepo as any, readRepo as any, dictService as any, userService as any);
   });
 
   const baseDto = { targetType: 'post' as any, targetId: 10, reasonType: 'spam' };
@@ -257,7 +260,7 @@ describe('PostReportService', () => {
       articleRepo.find.mockResolvedValue([{ id: 10, title: '文章A' }]);
       userRepo.find.mockResolvedValue([{ userId: 9, nickName: '用户B' }]);
 
-      const res = await service.findAdminList({ pageNum: 1, pageSize: 10 } as any);
+      const res = await service.findAdminList({ pageNum: 1, pageSize: 10 } as any, 1);
       const list = res.data.list as Array<Record<string, any>>;
 
       expect(res.data.total).toBe(2);
@@ -270,6 +273,25 @@ describe('PostReportService', () => {
         targetName: null,
       });
       expect(list[1]).toMatchObject({ targetSnapshot: '用户B', targetTitle: null, targetName: '用户B' });
+      // 无已读标记：全行 isRead=false（工作台/管理页共用 30 号逐条已读回填，report_id=[1,2]）
+      expect(readRepo.find).toHaveBeenCalledWith({ where: { userId: 1, source: 'report', sourceId: In([1, 2]) }, select: ['sourceId'] });
+      expect(list.map((item: { isRead: boolean }) => item.isRead)).toEqual([false, false]);
+    });
+
+    it('已读标记命中：对应行 isRead=true', async () => {
+      chain.getRawAndEntities.mockResolvedValue({
+        raw: [
+          { report_id: 1, report_status: '0', report_target_type: 'post', report_target_id: 10, report_reporter_id: 7 },
+        ],
+        entities: [],
+      });
+      articleRepo.find.mockResolvedValue([]);
+      userRepo.find.mockResolvedValue([]);
+      readRepo.find.mockResolvedValue([{ sourceId: 1 }]);
+
+      const res = await service.findAdminList({ pageNum: 1, pageSize: 10 } as any, 1);
+
+      expect((res.data.list as Array<{ isRead: boolean }>)[0].isRead).toBe(true);
     });
   });
 
