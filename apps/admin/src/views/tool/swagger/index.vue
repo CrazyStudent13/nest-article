@@ -5,7 +5,7 @@
       <p class="tools-desc">接口文档与实用工具集合</p>
     </div>
 
-    <!-- 三入口卡片：链接同源直出（nginx 静态托管 + /openapi.json live spec），新窗口打开 -->
+    <!-- 三入口卡片：链接同源直出（nginx 静态托管 + /api/openapi.json live spec），新窗口打开 -->
     <el-row :gutter="16">
       <el-col v-for="tool in tools" :key="tool.title" :xs="24" :sm="8">
         <el-card class="tool-card" shadow="hover">
@@ -31,8 +31,8 @@
 import { Promotion, Document, Link, TopRight } from '@element-plus/icons-vue';
 
 // 三个入口均由管理端 nginx 同源直出：
-// - /swagger-ui/ 与 /docs：nginx 静态页（资产本地入库），规格读 /openapi.json live 输出
-// - /openapi.json：代理服务端每次启动实时生成的 OpenAPI 规范（Apifox 导入用）
+// - /swagger-ui/ 与 /docs：nginx 静态页（资产本地入库），规格读 /api/openapi.json live 输出
+// - /api/openapi.json：经 ^~ /api/ 反代到服务端实时生成的 OpenAPI 规范（Apifox 导入用，随 swagger.enable 开关）
 const tools = [
   {
     title: 'Swagger UI',
@@ -56,7 +56,7 @@ const tools = [
     icon: Link,
     iconColor: '#e6a23c',
     buttonType: 'warning',
-    url: '/openapi.json'
+    url: '/api/openapi.json'
   }
 ];
 

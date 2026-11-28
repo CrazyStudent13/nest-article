@@ -3,7 +3,13 @@ import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { writeFileSync } from 'fs';
 import { join } from 'path';
 
-const SWAGGER_HTML = `
+// 文档路由统一挂在全局前缀下（如 /api/openapi.json）：
+// 1) 与 API 同走 nginx 的 ^~ /api/ 反代，docker 部署下静态文档页（deploy/nginx/*.html）才取得到规格；
+// 2) 根路径 /openapi.json 在 nginx 侧被硬 404 封死，规格只从这一条受 swagger.enable 管控的路出来
+// 是否开启由 main.ts 的 swagger.enable 判断，本函数仅在开启时调用
+const normalizeBase = (prefix?: string): string => (prefix ? `/${String(prefix).replace(/^\/+/, '')}` : '');
+
+const SWAGGER_HTML = (base = '') => `
 <!DOCTYPE html>
 <html lang="en">
   <head>
@@ -24,7 +30,7 @@ const SWAGGER_HTML = `
     <script>
       window.onload = function () {
         window.ui = SwaggerUIBundle({
-          url: '/openapi.json',
+          url: '${base}/openapi.json',
           dom_id: '#swagger-ui',
           deepLinking: true,
           presets: [SwaggerUIBundle.presets.apis, SwaggerUIStandalonePreset],
@@ -37,7 +43,7 @@ const SWAGGER_HTML = `
 </html>
 `;
 
-const REDOC_HTML = (themeColor = '#1890ff') => `
+const REDOC_HTML = (themeColor = '#1890ff', base = '') => `
 <!DOCTYPE html>
 <html>
   <head>
@@ -51,7 +57,7 @@ const REDOC_HTML = (themeColor = '#1890ff') => `
   </head>
   <body>
     <redoc
-      spec-url="/openapi.json"
+      spec-url="${base}/openapi.json"
       theme='{"colors": {"primary": {"main": "${themeColor}"}}}'
       hide-hostname="true"
       required-props-first="true"
@@ -64,6 +70,9 @@ const REDOC_HTML = (themeColor = '#1890ff') => `
 `;
 
 export function setupApiDocs(app: INestApplication, prefix = '', themeColor = '#1890ff'): void {
+  // 前缀归一化：config 里是 'api'（无前导斜杠），必须补齐否则挂载点永不匹配请求路径（此 bug 曾致文档页不可达）
+  const base = normalizeBase(prefix);
+
   const swaggerOptions = new DocumentBuilder()
     .setTitle('Nest-Admin')
     .setDescription('Nest-Admin 接口文档')
@@ -82,19 +91,16 @@ export function setupApiDocs(app: INestApplication, prefix = '', themeColor = '#
   const openApiJsonPath = join(process.cwd(), 'openApi.json');
   writeFileSync(openApiJsonPath, JSON.stringify(document, null, 2));
 
-  app.use('/openapi.json', (req, res) => {
+  // app.use 按前缀匹配，swagger-ui 带不带尾斜杠都会命中，无需重复注册
+  app.use(`${base}/openapi.json`, (req, res) => {
     res.sendFile(openApiJsonPath);
   });
 
-  app.use(`${prefix}/swagger-ui`, (req, res) => {
-    res.type('html').send(SWAGGER_HTML);
+  app.use(`${base}/swagger-ui`, (req, res) => {
+    res.type('html').send(SWAGGER_HTML(base));
   });
 
-  app.use(`${prefix}/swagger-ui/`, (req, res) => {
-    res.type('html').send(SWAGGER_HTML);
-  });
-
-  app.use(`${prefix}/docs`, (req, res) => {
-    res.type('html').send(REDOC_HTML(themeColor));
+  app.use(`${base}/docs`, (req, res) => {
+    res.type('html').send(REDOC_HTML(themeColor, base));
   });
 }

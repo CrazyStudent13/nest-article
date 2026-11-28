@@ -138,14 +138,17 @@ async function bootstrap() {
     // 设置 API 文档（Swagger UI + Redoc）
     setupApiDocs(app, prefix, '#1890ff');
 
+    // 文档路由挂载点与 setupApiDocs 保持一致：前缀补齐前导斜杠（config 里是 'api'）
+    const docsBase = prefix ? `/${String(prefix).replace(/^\/+/, '')}` : '';
+
     // 为 Swagger UI 和 Redoc 静态资源添加 CORS 头
-    app.use('/swagger-ui*', (req, res, next) => {
+    app.use(`${docsBase}/swagger-ui*`, (req, res, next) => {
       res.header('Access-Control-Allow-Origin', '*');
       res.header('Access-Control-Allow-Methods', 'GET, OPTIONS');
       next();
     });
 
-    app.use('/docs*', (req, res, next) => {
+    app.use(`${docsBase}/docs*`, (req, res, next) => {
       res.header('Access-Control-Allow-Origin', '*');
       res.header('Access-Control-Allow-Methods', 'GET, OPTIONS');
       next();
@@ -161,15 +164,17 @@ async function bootstrap() {
   await app.listen(port);
 
   // 文档关闭时路由未注册，不再打印文档入口，改为一行状态便于部署后核对开关是否生效
+  // 服务地址/文档入口的前缀补齐前导斜杠（config 里是 'api'，直接拼接会打出 8080api 这种坏 URL）
+  const urlBase = prefix ? `/${String(prefix).replace(/^\/+/, '')}` : '';
   const apiDocsBanner = apiDocsEnabled
-    ? [`\n📖 Swagger UI: http://localhost:${port}${prefix}/swagger-ui/`, `\n📚 Redoc 文档：http://localhost:${port}${prefix}/docs`, `\n🔧 Apifox 导入：http://localhost:${port}/openapi.json`]
+    ? [`\n📖 Swagger UI: http://localhost:${port}${urlBase}/swagger-ui/`, `\n📚 Redoc 文档：http://localhost:${port}${urlBase}/docs`, `\n🔧 Apifox 导入：http://localhost:${port}${urlBase}/openapi.json`]
     : [`\n📖 API 文档：已关闭（swagger.enable 未开启）`];
 
   console.log(
     `\n========================================`,
     `\n✅ Nest-Admin 服务启动成功`,
     `\n========================================`,
-    `\n📍 服务地址：http://localhost:${port}${prefix}/`,
+    `\n📍 服务地址：http://localhost:${port}${urlBase}/`,
     ...apiDocsBanner,
     `\n========================================\n`,
   );
