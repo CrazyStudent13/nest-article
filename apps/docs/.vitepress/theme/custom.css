@@ -47,6 +47,17 @@
   }
 }
 
+/* 版本一览表列宽：版本/日期/标签列不换行（日期 2026-11-28 曾折成两行），主题列吃满剩余宽度。
+   选择器圈定「版本一览」h2 的紧邻表格，页面其余表格不受影响；窄屏表格本就横向滚动 */
+#版本一览 + table th:nth-child(1),
+#版本一览 + table td:nth-child(1),
+#版本一览 + table th:nth-child(2),
+#版本一览 + table td:nth-child(2),
+#版本一览 + table th:nth-child(4),
+#版本一览 + table td:nth-child(4) {
+  white-space: nowrap;
+}
+
 /* 发布记录侧边栏时间线 */
 .VPSidebar .VPSidebarItem.level-0:has(a.link[href*='/releases']) > .items {
   position: relative;
