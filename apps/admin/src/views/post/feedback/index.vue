@@ -1,8 +1,8 @@
 <!-- 反馈管理（交互管理/反馈管理）：登录用户提交的反馈明细列表，支持反馈类型/处理状态/提交人昵称与时间范围过滤；
-     反馈内容列与处理弹窗展示截图附件缩略图（el-image 点击大图预览，/profile/ 相对 URL 经 getImageUrl 补全）；
-     处理弹窗两结论（回复：replyContent 必填，处理结果经 sys_notice 定向通知 type=4 发给提交人；关闭：回复可选简短说明），
-     终态不可重复处理（服务端 status='0' 条件更新乐观锁）；提交人昵称/头像由服务端 attachUserInfo 回填（row.userInfo），
-     批量删除为物理删除（同举报记录口径，删除不影响已发出的处理通知） -->
+     反馈内容列单行省略可点开右侧详情抽屉（全文+截图附件大图预览，行内不渲染缩略图——列表只留「图 xN」角标）；
+     查看与处理合一抽屉：待处理记录在抽屉下半区直接给处理表单（回复必填/关闭可选，处理结果经 sys_notice
+     定向通知 type=4 发给提交人），已处理记录只读展示处理结果；终态不可重复处理（服务端 status='0' 条件更新
+     乐观锁）；提交人昵称/头像由服务端 attachUserInfo 回填（row.userInfo），批量删除为物理删除（同举报记录口径） -->
 <template>
   <div class="app-container">
     <div class="main-card">
@@ -37,23 +37,12 @@
             <dict-tag type="post_feedback_type" :value="row.type" />
           </template>
         </el-table-column>
-        <el-table-column min-width="220">
+        <!-- 反馈内容：单行省略，点击开详情抽屉看全文与大图；「图 xN」只作数量角标（行内缩略图看不清，大图进抽屉） -->
+        <el-table-column min-width="220" show-overflow-tooltip>
           <template #header>反馈内容</template>
           <template #default="{ row }">
-            <span class="feedback-text">{{ row.content }}</span>
-            <!-- 截图附件缩略图（服务端 /profile/ 相对 URL 经 getImageUrl 补全），点击 el-image 内置大图预览 -->
-            <div v-if="row.attachments?.length" class="feedback-attachments">
-              <el-image
-                v-for="url in row.attachments"
-                :key="url"
-                :initial-index="0"
-                :preview-src-list="row.attachments.map((a) => getImageUrl(a))"
-                :src="getImageUrl(url)"
-                fit="cover"
-                preview-teleported
-                class="feedback-thumb"
-              />
-            </div>
+            <span class="feedback-link" @click="openDetail(row)">{{ row.content }}</span>
+            <el-tag v-if="row.attachments?.length" class="attach-count" size="small" type="info" effect="plain">图 x{{ row.attachments.length }}</el-tag>
           </template>
         </el-table-column>
         <!-- 提交人：服务端 attachUserInfo 回填 userInfo（昵称+头像），头像缺省降级纯昵称 -->
@@ -73,18 +62,9 @@
         <el-table-column width="160">
           <template #header>回复内容</template>
           <template #default="{ row }">
-            <!-- 单标签标记结论，回复全文/处理人/时间收进悬浮详情 -->
-            <el-tooltip v-if="row.status !== '0'" placement="top">
-              <template #content>
-                处理人：{{ row.replyAdminName || '—' }}<br />
-                处理时间：{{ row.replyTime ? dayjs(row.replyTime).format('YYYY-MM-DD HH:mm:ss') : '—' }}<br />
-                回复内容：{{ row.replyContent || '无' }}
-              </template>
-              <el-tag :type="row.status === '1' ? 'success' : 'info'" effect="light" size="small">{{ row.status === '1' ? '已回复' : '已关闭' }}</el-tag>
-            </el-tooltip>
-            <el-tooltip v-else content="等待管理员处理" placement="top">
-              <span class="handle-pending">待处理</span>
-            </el-tooltip>
+            <!-- 单标签标记结论，回复全文/处理人/时间进详情抽屉 -->
+            <el-tag v-if="row.status !== '0'" :type="row.status === '1' ? 'success' : 'info'" effect="light" size="small">{{ row.status === '1' ? '已回复' : '已关闭' }}</el-tag>
+            <span v-else class="handle-pending">待处理</span>
           </template>
         </el-table-column>
         <el-table-column label="提交时间" prop="createTime" width="180">
@@ -92,7 +72,7 @@
         </el-table-column>
         <el-table-column label="操作" width="170">
           <template #default="{ row }">
-            <el-button v-if="row.status === '0'" v-hasPermi="['post:feedback:handle']" :icon="Edit" link type="primary" @click="openHandle(row)">处理</el-button>
+            <el-button v-if="row.status === '0'" v-hasPermi="['post:feedback:handle']" :icon="Edit" link type="primary" @click="openDetail(row)">处理</el-button>
             <el-button v-hasPermi="['post:feedback:remove']" :icon="Delete" link type="danger" @click="feedback.handleDelete(row)">删除</el-button>
           </template>
         </el-table-column>
@@ -100,52 +80,73 @@
       <pagination v-show="feedback.total > 0" v-model:limit="feedback.queryParams.pageSize" v-model:page="feedback.queryParams.pageNum" :total="feedback.total" @pagination="feedback.getList" />
     </div>
 
-    <!-- 处理弹窗：提交人信息展示（头像+昵称）+ 反馈内容只读回显；结论二选一（回复必填回复内容，关闭可选简短说明）；
-         处理结果经 sys_notice 定向通知（type=4 反馈回复）发给提交人，前台「系统通知」栏承接 -->
-    <el-dialog v-model="handleOpen" append-to-body title="处理反馈" width="560px">
-      <el-form label-width="90px">
-        <el-form-item label="提交人">
+    <!-- 详情/处理合一抽屉：上半区只读详情（提交人/类型与时间/反馈全文/截图附件大图/处理结果回显），
+         下半区待处理时给处理表单（回复必填、关闭可选说明）；内容列与操作列「处理」都开本抽屉 -->
+    <el-drawer v-model="detailOpen" append-to-body direction="rtl" size="480px" title="反馈详情">
+      <div class="detail-scroll">
+        <div class="detail-row">
+          <span class="detail-label">提交人</span>
           <span class="submitter">
-            <el-avatar v-if="handleRow?.userInfo?.avatar" :size="28" :src="getImageUrl(handleRow.userInfo.avatar)" />
-            <span>{{ handleRow?.userInfo?.nickName || '已注销用户' }}</span>
+            <el-avatar v-if="detailRow?.userInfo?.avatar" :size="28" :src="getImageUrl(detailRow.userInfo.avatar)" />
+            <span>{{ detailRow?.userInfo?.nickName || '已注销用户' }}</span>
           </span>
-        </el-form-item>
-        <el-form-item label="反馈类型">
-          <dict-tag type="post_feedback_type" :value="handleRow?.type" />
-          <span class="submit-time">{{ handleRow?.createTime ? dayjs(handleRow.createTime).format('YYYY-MM-DD HH:mm:ss') : '' }} 提交</span>
-        </el-form-item>
-        <el-form-item label="反馈内容">
-          <span class="feedback-content">{{ handleRow?.content }}</span>
-        </el-form-item>
-        <el-form-item v-if="handleRow?.attachments?.length" label="截图附件">
-          <div class="feedback-attachments">
+        </div>
+        <div class="detail-row">
+          <span class="detail-label">反馈类型</span>
+          <dict-tag type="post_feedback_type" :value="detailRow?.type" />
+          <span class="submit-time">{{ detailRow?.createTime ? dayjs(detailRow.createTime).format('YYYY-MM-DD HH:mm:ss') : '' }} 提交</span>
+        </div>
+        <div class="detail-row">
+          <span class="detail-label">反馈内容</span>
+          <span class="feedback-content">{{ detailRow?.content }}</span>
+        </div>
+        <div v-if="detailRow?.attachments?.length" class="detail-row">
+          <span class="detail-label">截图附件</span>
+          <div class="detail-attachments">
             <el-image
-              v-for="url in handleRow.attachments"
+              v-for="(url, index) in detailRow.attachments"
               :key="url"
-              :initial-index="0"
-              :preview-src-list="handleRow.attachments.map((a) => getImageUrl(a))"
+              :initial-index="index"
+              :preview-src-list="detailRow.attachments.map((a) => getImageUrl(a))"
               :src="getImageUrl(url)"
               fit="cover"
               preview-teleported
-              class="feedback-thumb-lg"
+              class="detail-thumb"
             />
           </div>
-        </el-form-item>
-        <el-form-item label="处理结论">
-          <el-radio-group v-model="handleForm.status">
-            <el-radio label="1">回复</el-radio>
-            <el-radio label="2">关闭</el-radio>
-          </el-radio-group>
-        </el-form-item>
-        <el-form-item :required="handleForm.status === '1'" label="回复内容">
-          <el-input v-model="handleForm.replyContent" :rows="4" maxlength="500" show-word-limit type="textarea" :placeholder="handleForm.status === '1' ? '回复内容会通过系统通知发给提交人' : '关闭说明（可选）'" />
-        </el-form-item>
-      </el-form>
-      <template #footer>
-        <el-button @click="handleOpen = false">取消</el-button>
-        <el-button :loading="handleSubmitting" type="primary" @click="submitHandle">确定</el-button>
+        </div>
+        <div v-if="detailRow && detailRow.status !== '0'" class="detail-row">
+          <span class="detail-label">处理结果</span>
+          <div class="handle-result">
+            <div class="handle-result-head">
+              <dict-tag type="post_feedback_status" :value="detailRow.status" />
+              <span class="submit-time">{{ detailRow.replyAdminName || '—' }} · {{ detailRow.replyTime ? dayjs(detailRow.replyTime).format('YYYY-MM-DD HH:mm:ss') : '' }}</span>
+            </div>
+            <span v-if="detailRow.replyContent" class="feedback-content">{{ detailRow.replyContent }}</span>
+          </div>
+        </div>
+
+        <!-- 处理表单：仅待处理 + 持处理权限可见；结论默认回复，回复内容必填（服务端同口径） -->
+        <template v-if="detailRow?.status === '0'">
+          <el-divider class="detail-divider" content-position="left">处理</el-divider>
+          <el-form label-width="80px">
+            <el-form-item label="处理结论">
+              <el-radio-group v-model="handleForm.status">
+                <el-radio label="1">回复</el-radio>
+                <el-radio label="2">关闭</el-radio>
+              </el-radio-group>
+            </el-form-item>
+            <el-form-item :required="handleForm.status === '1'" label="回复内容">
+              <el-input v-model="handleForm.replyContent" :rows="4" maxlength="500" show-word-limit type="textarea" :placeholder="handleForm.status === '1' ? '回复内容会通过系统通知发给提交人' : '关闭说明（可选）'" />
+            </el-form-item>
+          </el-form>
+        </template>
+      </div>
+      <template v-if="detailRow?.status === '0'" #footer>
+        <el-button @click="detailOpen = false">取消</el-button>
+        <el-button v-hasPermi="['post:feedback:handle']" :loading="handleSubmitting" type="primary" @click="submitHandle">确定</el-button>
       </template>
-    </el-dialog>
+    </el-drawer>
   </div>
 </template>
 <script setup name="FeedbackManagement">
@@ -161,7 +162,7 @@ const dateRange = ref([]);
 
 const { post_feedback_type, post_feedback_status } = useDict('post_feedback_type', 'post_feedback_status');
 
-// 反馈管理列表（无新增/编辑；处理走独立弹窗）
+// 反馈管理列表（无新增/编辑；查看与处理合一抽屉）
 const feedback = useCrud({
   api: {
     // 列表查询注入日期范围参数
@@ -177,21 +178,21 @@ const feedback = useCrud({
   }
 });
 
-// ---------- 处理弹窗：结论默认回复、回复内容默认空；提交后重拉列表 ----------
-const handleOpen = ref(false);
+// ---------- 详情/处理抽屉：内容列点击与操作列「处理」共用；提交后重拉列表 ----------
+const detailOpen = ref(false);
 const handleSubmitting = ref(false);
-const handleRow = ref(null);
+const detailRow = ref(null);
 const handleForm = reactive({ status: '1', replyContent: '' });
 
-const openHandle = (row) => {
-  handleRow.value = row;
+const openDetail = (row) => {
+  detailRow.value = row;
   handleForm.status = '1';
   handleForm.replyContent = '';
-  handleOpen.value = true;
+  detailOpen.value = true;
 };
 
 const submitHandle = async () => {
-  if (!handleRow.value) return;
+  if (!detailRow.value) return;
   // 回复结论必填回复内容（服务端同口径校验，前端先拦一层）；关闭可不填
   const replyContent = handleForm.replyContent.trim();
   if (handleForm.status === '1' && !replyContent) {
@@ -200,15 +201,15 @@ const submitHandle = async () => {
   }
   handleSubmitting.value = true;
   try {
-    await handleFeedback(handleRow.value.id, {
+    await handleFeedback(detailRow.value.id, {
       status: handleForm.status,
       replyContent: replyContent || undefined
     });
     ElMessage.success('处理完成');
-    handleOpen.value = false;
+    detailOpen.value = false;
     feedback.getList();
   } catch {
-    /* 业务失败（如已被并发处理/终态不可重复处理）由请求层统一弹出，保持弹窗现场 */
+    /* 业务失败（如已被并发处理/终态不可重复处理）由请求层统一弹出，保持抽屉现场 */
   } finally {
     handleSubmitting.value = false;
   }
@@ -236,9 +237,39 @@ feedback.getList();
   color: var(--el-text-color-secondary);
 }
 
+// 内容列：可点击开抽屉的链接态
+.feedback-link {
+  color: var(--el-color-primary);
+  cursor: pointer;
+
+  &:hover {
+    text-decoration: underline;
+    text-underline-offset: 2px;
+  }
+}
+
+.attach-count {
+  margin-left: 6px;
+}
+
+// 抽屉详情区：纵向排布，标签行 + 内容块
+.detail-scroll {
+  padding-right: 4px;
+}
+
+.detail-row {
+  margin-bottom: 16px;
+
+  .detail-label {
+    display: block;
+    margin-bottom: 8px;
+    font-size: 13px;
+    color: var(--el-text-color-secondary);
+  }
+}
+
 .feedback-content {
   display: block;
-  width: 100%;
   padding: 8px 12px;
   border-radius: 4px;
   background-color: var(--el-fill-color-light);
@@ -249,33 +280,36 @@ feedback.getList();
   overflow-wrap: anywhere;
 }
 
-// 截图附件：列表 40px 缩略图行、弹窗 80px 缩略图行；el-image preview-teleported 全屏大图预览
-.feedback-text {
-  display: block;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.feedback-attachments {
+// 抽屉内附件：96px 大图（el-image preview-teleported 点击全屏预览）
+.detail-attachments {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
-  margin-top: 4px;
+  gap: 8px;
 
-  .feedback-thumb {
-    width: 40px;
-    height: 40px;
-    border-radius: 4px;
-    cursor: zoom-in;
-  }
-
-  .feedback-thumb-lg {
-    width: 80px;
-    height: 80px;
+  .detail-thumb {
+    width: 96px;
+    height: 96px;
     border-radius: 6px;
+    border: 1px solid var(--el-border-color-lighter);
     cursor: zoom-in;
   }
+}
+
+.handle-result {
+  .handle-result-head {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 8px;
+  }
+
+  .feedback-content {
+    margin: 0;
+  }
+}
+
+.detail-divider {
+  margin: 20px 0 16px;
 }
 
 .handle-pending {
