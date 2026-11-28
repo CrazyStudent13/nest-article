@@ -6,10 +6,17 @@
 
 | 路由 | 鉴权 | 说明 |
 |---|---|---|
-| `POST /` | JWT | 提交反馈；`{ type, content }`，返回 `{ submitted: true }`；24h 窗口 10 条频控 |
-| `GET /list` | `post:feedback:list` | 管理端列表（联提交人/处理人昵称 + attachUserInfo 回填提交人头像） |
+| `POST /` | JWT | 提交反馈；`{ type, content, attachments? }`，返回 `{ submitted: true }`；24h 窗口 10 条频控 |
+| `GET /list` | `post:feedback:list` | 管理端列表（联提交人/处理人昵称 + attachUserInfo 回填提交人头像；attachments 出库反序列化） |
 | `PUT /handle/:id` | `post:feedback:handle` | 处理：`{ status: '1'\|'2', replyContent? }`；回复必填 replyContent |
 | `DELETE /batch/:ids` | `post:feedback:remove` | 管理端批量物理删除 |
+
+截图附件（截图上传通道 `POST /common/upload`，登录即可、单文件 ≤10MB、`path=feedback` 归档子目录）：
+
+- **至多 3 张**，服务端 DTO 校验：数组 ≤3 项、每项 `/profile/` 前缀的相对 URL（只收本站上传通道产物，防外链注入）与长度 ≤255
+- **库内形态**：`post_feedback.attachments` varchar(1000) JSON 数组字符串（无附件 null），出库反序列化为数组，脏数据兜底空数组——不建关联表，附件只随单据读写
+- **client 交互**：弹窗附件区缩略图（76px）+ 删除 + 虚线「+」选图（`accept="image/*" multiple`），textarea 支持直接**粘贴截图**（paste 事件截获剪贴板图片文件走同一上传通道）；上传中禁止提交
+- **admin 展示**：列表内容列 40px 缩略图、处理弹窗 80px 缩略图，均 el-image `preview-teleported` 点击大图预览
 
 - **提交只要求登录，不挂权限串**：反馈是所有登录用户的基本能力（同点赞/关注/举报登录路径口径），挂权限串等于向普通用户关闭入口；防刷靠用户维度 24h 窗口频控（`idx_user_id` + `create_time` 统计，超限报错「反馈提交过于频繁，请 24 小时后再试」）
 - **不做 pending 去重**：多条不同反馈合法，无唯一索引去重、无 INSERT IGNORE；与举报（同目标同时至多一条待处理）是刻意不同的口径——反馈是意见箱不是工单去重场景
@@ -35,7 +42,7 @@
 - **全站右下角悬浮入口**：`app.vue` ClientOnly 挂载（编辑器等独立布局外也可见），44px 圆钮常驻基准位 `right: 28px / bottom: 28px`（z-index 95）
 - **与既有悬浮元素堆叠**：评论区「查看更多评论」FAB 胶囊（`CommentSection .comment-more-fab`，页面级偶发）让位到 `bottom: 84px`（基准位 + 圆钮 44px + 间距 12px），两者同现时垂直堆叠不硬叠
 - **未登录点击弹登录框**：登录意图 pattern（同关注 feed）——记住本次意图，登录成功自动打开反馈弹窗；关掉登录框未登录则放弃意图，避免之后在别处登录被连带弹窗
-- **反馈弹窗（Feedback/FeedbackDialog.vue）**：类型下拉走字典 `useDict('post_feedback_type')`（弹窗 `v-if` 挂载即登录态，满足字典登录守卫）；内容 textarea maxlength 500 与服务端 DTO 同限；提交成功 toast「反馈已提交」并关弹窗；频控等业务报错在弹窗内提示（保留填写现场）
+- **反馈弹窗（Feedback/FeedbackDialog.vue）**：类型下拉走字典 `useDict('post_feedback_type')`（弹窗 `v-if` 挂载即登录态，满足字典登录守卫）；内容 textarea maxlength 500 与服务端 DTO 同限；截图附件区（选图/粘贴/删除/上传中态）走 `useUpload` 的 `/common/upload` 通道；提交成功 toast「反馈已提交」并关弹窗；频控等业务报错在弹窗内提示（保留填写现场）
 
 ## 管理端（交互管理/反馈管理）
 
@@ -46,6 +53,5 @@
 
 ## v2 路线（缓做）
 
-- **截图附件**：反馈附图（本地存储/对象存储上传，服务端校验张数与大小）
 - **邮件增强**：处理结果邮件触达（SMTP 配置已有邮箱验证码通道可复用）
-- **我的反馈**：用户端历史反馈列表与处理进度展示（通知中心承接是 v1 的最小闭环）
+- **我的反馈**：用户端历史反馈列表与处理进度展示（通知中心承接是 v1 的最小闭环；附件图当前仅管理端可见）
