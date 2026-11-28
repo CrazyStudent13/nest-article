@@ -2,6 +2,14 @@
 
 更细粒度的过程记录（审查 → 修复 → 验收全程）见 [CODE-REVIEW-2026-11-20.md](./CODE-REVIEW-2026-11-20.md)。
 
+## 未发布
+
+### 新增
+
+- **用户反馈模块 v1 全链路**：登录用户右下角悬浮入口提交类型化反馈（功能建议/问题反馈/其他，走字典 `post_feedback_type`，textarea 500 字上限），24h 窗口 10 条用户维度频控防刷，不做 pending 去重、无 contact 字段（登录身份即提交人）；管理端「交互管理/反馈管理」（useCrud + 处理弹窗）回复/关闭两结论流转——回复必填回复内容、关闭可选简短说明，终态按 `status='0'` 条件更新乐观锁不可重复处理；处理结果经 sys_notice 定向通知（`sys_notice_type` 新增 `'4' 反馈回复`，绿色徽标）发给提交人，前台「系统通知」栏承接，逐条已读模型照旧，不新增通知 tab/水位分类；用户弹窗未登录点击弹登录框且登录成功自动打开（登录意图 pattern），评论区「查看更多评论」FAB 让位堆叠（bottom 28→84px）；shared 新增 Feedback 枚举与线格式类型 + openapi 契约重生成
+- **种子**：init.sql 新增 29 号表 `post_feedback`（datetime(3) 毫秒粒度、idx_user_id/idx_status）、字典类型 22 `post_feedback_type` / 23 `post_feedback_status`（dict_data 69-74，登录态专用不公开——游客不可提交无需进游客白名单）、`sys_notice_type` 字典 '4'（dict_code 75）、菜单 215/216/217（parent 6 交互管理，显式列名 INSERT）与 role 2 授权；**存量库勿重跑全量 init.sql**，增量 SQL 见发版提交说明
+- **docs**：新增反馈模块约定页（接口契约/通知送达口径/widget 落位与堆叠/v2 路线：截图附件、邮件增强、我的反馈历史缓做），侧栏与 client 概览/开发约定挂入口
+
 ## v1.4.3（2026-11-28）
 
 发版流程沉淀为项目 skill 的工程化小版本，无业务代码变更。

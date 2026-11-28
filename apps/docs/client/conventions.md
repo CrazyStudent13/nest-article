@@ -36,3 +36,4 @@
 - 评论：CommentSection 自带 listSeq 丢弃过期请求、append 按 id 去重、沿 parentId 链归位
 - 关注：三态按钮（Follow/Button.vue）state 未传自行查 status、列表行直传；动作后回读 status 拿互关态，页面回写行数据。详见 [关注模块约定](./follow)
 - 举报：ReportDialog 文章/用户共用（targetType 区分），理由选项走字典 post_report_reason；已举报置灰态挂点自查 status 回写；处理反馈走 sys_notice 定向通知（type=3），系统通知栏红色徽标承接。详见 [举报模块约定](./report)
+- 反馈：FeedbackWidget 全站右下角常驻入口（评论 FAB 让位堆叠），未登录点击弹登录框后自动开反馈弹窗（登录意图 pattern）；类型下拉走字典 post_feedback_type（登录态专用不公开），textarea 500 字上限；处理通知走 sys_notice 定向通知（type=4），系统通知栏绿色徽标承接。详见 [反馈模块约定](./feedback)

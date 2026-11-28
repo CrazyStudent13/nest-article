@@ -31,5 +31,6 @@ pnpm --filter client build      # 生产构建
 
 - [开发约定](./conventions)
 - [关注模块约定](./follow)
+- [反馈模块约定](./feedback)
 
 入口文档：`apps/client/README.md`。
