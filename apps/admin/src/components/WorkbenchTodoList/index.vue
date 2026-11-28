@@ -21,10 +21,6 @@
           type="daterange"
           value-format="YYYY-MM-DD"
         />
-        <el-select v-model="queryParams.orderRule" style="width: 110px">
-          <el-option label="时间正序" value="asc" />
-          <el-option label="时间倒序" value="desc" />
-        </el-select>
         <el-button :icon="Search" type="primary" @click="handleQuery">查询</el-button>
       </div>
     </div>
@@ -86,8 +82,7 @@ const queryParams = reactive({
   pageNum: 1,
   pageSize: 5,
   tab: 'pending',
-  source: '',
-  orderRule: 'desc'
+  source: ''
 });
 
 const formatTime = (value) => (value ? dayjs(value).format('YYYY-MM-DD HH:mm') : '—');
