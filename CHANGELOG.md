@@ -6,7 +6,22 @@
 
 ### 新增
 
-- **管理端首页改工作台（统一待办收件箱，政府 OA 式全宽列表）**：新模块 `post/workbench` 两聚合接口均仅登录、服务层 `hasPermission`（通配感知）逐源过滤——`GET /api/post/workbench/todos`（首页唯一消费方）：待办/已办双 tab（徽标计数随响应捎回，已办=全部已处理记录的团队视角，成立/驳回、已回复/已关闭均计）+ 来源筛选（与权限取交集）+ 时间范围（复用 PagingDto.params，同管理列表 addDateRange 口径，工具条整行底线与表格区隔开、分页 0 条常显保卡高稳定）；有权源 UNION ALL 归一化（source/摘要/提交人/提交时间/办结时间；举报摘要快照优先、无快照用举报理由内容兜底）按提交时间倒序 DB 侧分页（5 条/页，排序方向切换已删——分页兜底查找，查详情去对应管理页）已办 tab 时间列切显示办结时间（举报 handle_time/反馈 reply_time）；行只读不承载处理——待办行带 `status=0` 深链跳对应管理页预置筛选，已办行不带筛选（已办混两种终态），处理交互长在各自管理页（举报弹窗/反馈抽屉）；**不建通用 todo 表**（避免与各源状态机双向同步漂移），待处理/已处理口径归各业务服务自管（countPending/countDone）；右侧独立问候小卡（问候语+当日日期，与待办卡同高），列表表格区定高≈5 行（每页 5 条恰好填满，不足留白、卡高稳定）；接口文档入口侧栏已有，不重复放置；`GET /api/post/workbench/summary` 前端改版后不再消费，保留给二期侧栏菜单待办角标复用；文章审核待办源上线时源定义加一条 + 业务服务补计数即可；openapi 契约重生成收录（无种子变更，存量库无需处理）
+- **管理端首页改工作台（统一待办收件箱，政府 OA 式全宽列表）**：新模块 `post/workbench` 两聚合接口均仅登录、服务层 `hasPermission`（通配感知）逐源过滤——`GET /api/post/workbench/todos`（首页唯一消费方）：待办/已办双 tab（徽标计数随响应捎回，已办=全部已处理记录的团队视角，成立/驳回、已回复/已关闭均计）+ 来源筛选（与权限取交集）+ 时间范围（复用 PagingDto.params，同管理列表 addDateRange 口径，工具条整行底线与表格区隔开、分页 0 条常显保卡高稳定）；有权源 UNION ALL 归一化（source/摘要/提交人/提交时间/办结时间；举报摘要快照优先、无快照用举报理由内容兜底）按提交时间倒序 DB 侧分页（5 条/页，排序方向切换已删——分页兜底查找，查详情去对应管理页）已办 tab 时间列切显示办结时间（举报 handle_time/反馈 reply_time）；**已读/未读效果**：未读行红点+摘要加粗、已读无（红点/加粗），已读口径=工作区行点击（跳管理页查看）而非「处理过」，两 tab 统一，`POST /api/post/workbench/read` 行点击时标记（唯一索引 INSERT IGNORE 幂等，重复静默），列表行 isRead 按当前用户批查回填；行只读不承载处理——待办行带 `status=0` 深链跳对应管理页预置筛选，已办行不带筛选（已办混两种终态），处理交互长在各自管理页（举报弹窗/反馈抽屉）；**不建通用 todo 内容表**（避免与各源状态机双向同步漂移），待处理/已处理口径归各业务服务自管（countPending/countDone）；右侧独立问候小卡（问候语+当日日期，与待办卡同高），列表表格区定高≈5 行（每页 5 条恰好填满，不足留白、卡高稳定）；接口文档入口侧栏已有，不重复放置；`GET /api/post/workbench/summary` 前端改版后不再消费，保留给二期侧栏菜单待办角标复用；文章审核待办源上线时源定义加一条 + 业务服务补计数即可；openapi 契约重生成收录
+
+> 升级提示：**含数据库变更（30 号表）**——全新导入跑 init.sql 无需处理；存量库勿重跑全量 init.sql，按下述增量 SQL 建表即可：
+
+```sql
+-- 30 号表：工作台待办逐条已读库
+create table if not exists post_workbench_read (
+  id int not null auto_increment comment '自增 id',
+  user_id int not null comment '标记人用户ID',
+  source varchar(20) not null comment '待办源（report 举报 / feedback 反馈）',
+  source_id int not null comment '源记录 id（post_report.id / post_feedback.id）',
+  read_time datetime(3) default current_timestamp(3) comment '标记时间（毫秒粒度，同 post_feedback 口径）',
+  primary key (id),
+  unique key uk_user_source_record (user_id, source, source_id)
+) engine = innodb comment = '工作台待办逐条已读库';
+```
 
 ## v1.5.0（2026-11-28）
 
